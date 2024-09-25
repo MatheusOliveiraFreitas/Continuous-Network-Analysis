@@ -1,4 +1,4 @@
-**email para contato**: matheus18.1@yahoo.com
+**contact email**: matheus18.1@yahoo.com
 
 Vector Network Analysis is a processing plugin for Qgis that provides several tools that expand the Basic Qgis Network Analysis, providing innovative tools to facilitate Network Analysis, which in total are 5 functions.
 
