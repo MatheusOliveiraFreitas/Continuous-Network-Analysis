@@ -93,7 +93,7 @@ class ConectividadeAlgorithm(QgsProcessingAlgorithm):
         )
     def shortHelpString(self):
         #DEscrever oque ele faz nada muito grande so falar que ele detecta uma descontinuidade de um atribuo 
-        return self.tr("English:\nPerforms a series of procedures to verify the topological connectivity of a line layer from an initial layer (which must have intersection and/or overlap with at least one section of the network). At the end of the process, the plugin can generate two files:\n*The sections of the network that are not topologically connected to the initial layer, that is, the disconnected sections.\n*The sections of the network that are topologically connected to the initial layer.\n Português:\nRealiza uma série de procedimentos para verificar a conectividade topológica de uma camada de linhas a partir de uma camada inicial (que deve obrigatoriamente ter interseção e/ou sobreposição com pelo menos um trecho da rede). Ao final do processo, o plugin poderar gerar dois arquivos:\n*Os trechos da rede que não estão conectados topologicamente com a camada inicial, ou seja, os trechos desconectados.\n*Os trechos da rede que estão conectados topologicamente com a camada inicial.")
+        return self.tr("English:\nPerforms a series of procedures to verify the topological connectivity of a line layer from an initial layer (which must have intersection and/or overlap with at least one section of the network). At the end of the process, the plugin can generate two files:\n*Excerpt Disconnected: The sections of the network that are not topologically connected to the initial layer, that is, the disconnected sections.\n*Connected Section: The sections of the network that are topologically connected to the initial layer.\n Português:\nRealiza uma série de procedimentos para verificar a conectividade topológica de uma camada de linhas a partir de uma camada inicial (que deve obrigatoriamente ter interseção e/ou sobreposição com pelo menos um trecho da rede). Ao final do processo, o plugin poderar gerar dois arquivos:\n*Excerpt Disconnected:Os trechos da rede que não estão conectados topologicamente com a camada inicial, ou seja, os trechos desconectados.\n*Connected Section: Os trechos da rede que estão conectados topologicamente com a camada inicial.")
 
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -231,7 +231,7 @@ class ConectividadeAlgorithm(QgsProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'Network Connectivity From a Point'
+        return 'Disconnected Network Segments'
 
     def displayName(self):
         """

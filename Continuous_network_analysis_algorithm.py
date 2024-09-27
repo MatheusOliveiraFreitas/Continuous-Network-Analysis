@@ -485,7 +485,7 @@ class ContinuousNetworkAnalysisAlgorithm(QgsProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'Attribute Discontinuity in a Network'
+        return 'Attribute Discontinuity Detector'
 
     def displayName(self):
         """
