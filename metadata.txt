@@ -11,11 +11,11 @@ author=Matheus Oliveira de Freitas
 email=matheus18.1@yahoo.com.br
 
 about=	-The plugin focuses on analyzing vector networks. The plugin offers a range of procedures for analyzing line-type vector networks. The procedures are:
-	-Attribute discontinuity in a network (the attribute must be continuous).
+	-Attribute Discontinuity Detector.
 	-Dangle Analysis.
 	-Extract Springs.
 	-Identify Dangles.
-	-Network Connectivity From a Point.
+	-Disconnected Network Segments.
 
 # End of mandatory metadata
 
