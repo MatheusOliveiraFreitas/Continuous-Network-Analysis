@@ -4,7 +4,7 @@ Vector Network Analysis is a processing plugin for Qgis that provides several to
 
 **Main features are**:
 
-***"Attribute discontinuity in a network"***: It will identify through points where in the Network the selected attribute was stopped, ideal for analyzing road networks where a highway with acronym connects to another highway with acronym or drainage network where the name should connect to another named section.
+***"Attribute Discontinuity Detector"***: It will identify through points where in the Network the selected attribute was stopped, ideal for analyzing road networks where a highway with acronym connects to another highway with acronym or drainage network where the name should connect to another named section.
 
 ***"Dangle Analysis"***: A tool where the user will choose a network, it will identify the loose ends (Dangles) in the network, with this the user will be able to select several layers of the project, to identify if the Dangles have overlap and/or intersection with these selected layers. Thus, it can generate two files:
 
@@ -18,7 +18,7 @@ Vector Network Analysis is a processing plugin for Qgis that provides several to
 
 ***"Identify Dangles"***: A tool where the user will choose a network, it will identify the loose ends (Dangles) in the network.
 
-***"Network Connectivity From a Point"***: Performs a series of procedures to verify the topological connectivity of a line layer from an initial layer (which must have intersection and/or overlap with at least one section of the network). At the end of the process, the plugin can generate two files:
+***"Disconnected Network Segments"***: Performs a series of procedures to verify the topological connectivity of a line layer from an initial layer (which must have intersection and/or overlap with at least one section of the network). At the end of the process, the plugin can generate two files:
 
 -  Excerpt Disconnected: The network sections that are not topologically connected to the initial layer, that is, the disconnected sections.
 -  Connected Section: The network sections that are topologically connected to the initial layer.
@@ -32,7 +32,7 @@ O Vector Network Analysis é um complemento processing para o Qgis que traz vari
 
 **Recursos Principais são**:
 
-***"Attribute discontinuity in a network"***: Vai identificar por meio de pontos onde na Rede onde o atributo selecionado foi parado, ideal para analise de redes rodoviárias onde uma rodovia com Sigla conecta com outra rodovia com Sigla ou rede de drenagem onde o nome deve conectar com outro trecho com nome.
+***"Attribute Discontinuity Detector"***: Vai identificar por meio de pontos onde na Rede onde o atributo selecionado foi parado, ideal para analise de redes rodoviárias onde uma rodovia com Sigla conecta com outra rodovia com Sigla ou rede de drenagem onde o nome deve conectar com outro trecho com nome.
 
 ***"Dangle Analysis"***: Uma ferramenta onde o usuário ira escolher uma rede, ira identificar as pontas soltas(Dangles) na rede, com isso o usuário poderá selecionar varias camadas do projeto, para identificar se os Dangles tem sobreposição e/ou interseção com essas camadas selecionadas.
 Assim podendo gerar dois arquivos:
@@ -45,6 +45,6 @@ Assim podendo gerar dois arquivos:
 
 ***"Identify Dangles"***: Uma ferramenta onde o usuário ira escolher uma rede, ira identificar as pontas soltas(Dangles) na rede.
 
-***"Network Connectivity From a Point"***:Realiza uma série de procedimentos para verificar a conectividade topológica de uma camada de linhas a partir de uma camada inicial (que deve obrigatoriamente ter interseção e/ou sobreposição com pelo menos um trecho da rede). Ao final do processo, o plugin poderar gerar dois arquivos:
+***"Disconnected Network Segments"***:Realiza uma série de procedimentos para verificar a conectividade topológica de uma camada de linhas a partir de uma camada inicial (que deve obrigatoriamente ter interseção e/ou sobreposição com pelo menos um trecho da rede). Ao final do processo, o plugin poderar gerar dois arquivos:
 -	Excerpt Disconnected: Os trechos da rede que não estão conectados topologicamente com a camada inicial, ou seja, os trechos desconectados.
 -	Connected Section: Os trechos da rede que estão conectados topologicamente com a camada inicial.
