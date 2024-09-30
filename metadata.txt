@@ -19,8 +19,8 @@ about=	-The plugin focuses on analyzing vector networks. The plugin offers a ran
 
 # End of mandatory metadata
 
-tracker=https://github.com/MatheusOliveiraFreitas/compare_attributes
-repository=https://github.com/MatheusOliveiraFreitas/compare_attributes
+tracker=https://github.com/MatheusOliveiraFreitas/Continuous-Network-Analysis
+repository=https://github.com/MatheusOliveiraFreitas/Continuous-Network-Analysis
  
 # End of mandatory metadata
  
@@ -32,7 +32,7 @@ hasProcessingProvider=yes
  
 # Tags are comma separated with spaces allowed
 tags=python, processing, provider, vector, script
-homepage=http://homepage
+homepage=https://github.com/MatheusOliveiraFreitas/Continuous-Network-Analysis
 category=Analysis, Processing 
 icon=icon.png
  
