@@ -6,7 +6,7 @@
 name=Continuous Network Analysis (Processing)
 qgisMinimumVersion=3.0
 description=Processing plugin that adds several scripts to assist in decision making and validation of line-type vector networks by generating inconsistencies, further expanding the “Network Analysis” tool.
-version=0.1
+version=0.2
 author=Matheus Oliveira de Freitas
 email=matheus18.1@yahoo.com.br
 
@@ -28,7 +28,7 @@ repository=https://github.com/MatheusOliveiraFreitas/Continuous-Network-Analysis
 hasProcessingProvider=yes
  
 # Uncomment the following line and add your changelog:
-# changelog=
+# changelog=script optimization, resolved some bugs
  
 # Tags are comma separated with spaces allowed
 tags=python, processing, provider, vector, script
@@ -47,7 +47,7 @@ deprecated=False
 # plugin_dependencies=processing, provider, vector, script, python
  
 # Category of the plugin: Raster, Vector, Database or Web
-# category=
+# category=Vector
  
 # If the plugin can run on QGIS Server.
 server=False

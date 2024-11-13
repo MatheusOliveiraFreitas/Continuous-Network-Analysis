@@ -234,11 +234,11 @@ class DANGOS_NAO_DANGOS(QgsProcessingAlgorithm):
         'OUTPUT':'memory:'})
         
 
-
+        crs_in=nasc['OUTPUT'].sourceCrs()
         selected_indices = self.parameterAsEnums(parameters, self.LAYERS, context)
         selected_layer_names = [self.parameterDefinition(self.LAYERS).options()[i] for i in selected_indices]
         #feedback.pushInfo(f'Selected Layer: {selected_layer_name}')
-        output_layer = QgsVectorLayer('Polygon?crs=EPSG:4326', 'Buffer Output', 'memory')
+        output_layer = QgsVectorLayer(f'Polygon?crs=EPSG:{crs_in}', 'Buffer Output', 'memory')
         provider = output_layer.dataProvider()
 
         provider.addAttributes([QgsField("id", QVariant.Int)])
@@ -292,10 +292,18 @@ class DANGOS_NAO_DANGOS(QgsProcessingAlgorithm):
         'PREDICATE':[2],
         'OUTPUT':'memory:'}) 
         
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, dan['OUTPUT'].fields(), dan['OUTPUT'].wkbType(), dan['OUTPUT'].sourceCrs())
+        criar_id_1=processing.run("native:fieldcalculator", {'INPUT':dan['OUTPUT'],
+        'FIELD_NAME':'id',
+        'FIELD_TYPE':0,
+        'FIELD_LENGTH':0,
+        'FIELD_PRECISION':0,
+        'FORMULA':'$id',
+        'OUTPUT':'memory:'})          
+        
+        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, criar_id_1['OUTPUT'].fields(), criar_id_1['OUTPUT'].wkbType(), criar_id_1['OUTPUT'].sourceCrs())
 
             
-        for feature in dan['OUTPUT'].getFeatures():
+        for feature in criar_id_1['OUTPUT'].getFeatures():
             geom = feature.geometry()
             new_feature = QgsFeature()
             new_feature.setGeometry(geom)
@@ -307,11 +315,20 @@ class DANGOS_NAO_DANGOS(QgsProcessingAlgorithm):
         {'INPUT':deleta_C['OUTPUT'],
         'INTERSECT':output_layer,
         'PREDICATE':[0],
-        'OUTPUT':'memory:'})            
-        (sink2, dest_id2) = self.parameterAsSink(parameters, self.OUTPUT2, context, dan_2['OUTPUT'].fields(), dan_2['OUTPUT'].wkbType(), dan_2['OUTPUT'].sourceCrs())
+        'OUTPUT':'memory:'})
+        
+        criar_id_2=processing.run("native:fieldcalculator", {'INPUT':dan_2['OUTPUT'],
+        'FIELD_NAME':'id',
+        'FIELD_TYPE':0,
+        'FIELD_LENGTH':0,
+        'FIELD_PRECISION':0,
+        'FORMULA':'$id',
+        'OUTPUT':'memory:'})      
+        
+        (sink2, dest_id2) = self.parameterAsSink(parameters, self.OUTPUT2, context, criar_id_2['OUTPUT'].fields(), criar_id_2['OUTPUT'].wkbType(), criar_id_2['OUTPUT'].sourceCrs())
 
             
-        for feature in dan_2['OUTPUT'].getFeatures():
+        for feature in criar_id_2['OUTPUT'].getFeatures():
             geom_2 = feature.geometry()
             nova_Feicao = QgsFeature()
             nova_Feicao.setGeometry(geom_2)
