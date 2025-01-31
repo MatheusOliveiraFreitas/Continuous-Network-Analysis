@@ -108,8 +108,10 @@ class Dangles(QgsProcessingAlgorithm):
         if source is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 #######
+
+        crs=QgsProject.instance().crs()
         
-        duplicate_layer = QgsVectorLayer("Point?crs=EPSG:4326", "Vértices Duplicados", "memory")
+        duplicate_layer = QgsVectorLayer(f"Point?crs=EPSG:{crs}", "Vértices Duplicados", "memory")
         provider = duplicate_layer.dataProvider()
         
         # Adiciona um campo ID da feição original
