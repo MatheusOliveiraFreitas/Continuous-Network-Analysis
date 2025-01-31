@@ -24,8 +24,10 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingFeatureSourceDefinition,
                        QgsProcessingParameterField)
 from qgis import processing
+from collections import defaultdict
+from qgis.PyQt.QtCore import QVariant
 from qgis.core import QgsProject
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsWkbTypes,QgsProcessingUtils,QgsFeature
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsWkbTypes,QgsProcessingUtils,QgsFeature, QgsVectorLayer, QgsField,QgsPointXY,QgsGeometry
 class Dangles(QgsProcessingAlgorithm):
     """
     This is an example algorithm that takes a vector layer and
@@ -106,140 +108,54 @@ class Dangles(QgsProcessingAlgorithm):
         if source is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 #######
-
-        inter=processing.run("native:lineintersections", {'INPUT':parameters['INPUT'],
-        'INTERSECT':parameters['INPUT'],
-        'INPUT_FIELDS':[],
-        'INTERSECT_FIELDS':[],
-        'INTERSECT_FIELDS_PREFIX':'',
-        'OUTPUT':'memory:'})
-        #buff das intersecao para fazer a contagem de pontos, isso serve para contar quantos pontos tem
-        buff_p=processing.run("native:buffer",
-        {'INPUT':inter['OUTPUT'],
-        'DISTANCE': 1e-05,
-        'DISSOLVE': False,
-        'END_CAP_STYLE': 0,
-        'JOIN_STYLE':0,
-        'OUTPUT': 'memory:'})
-
-
-        #Contagem de pontos de intersecao tem dentro deste micro buff, caso tenha apenas dois ponto quer dizer que tenha apenas dois vertices, isso quer dizer que tem uma quebra com massa d agua
-        cont_p=processing.run("native:countpointsinpolygon", {'POLYGONS':buff_p['OUTPUT'],
-        'POINTS':inter['OUTPUT'],
-        'WEIGHT':'',
-        'CLASSFIELD':'',
-        'FIELD':'NUMPOINTS',
-        'OUTPUT':'memory:'})
-        #QgsProject.instance().addMapLayer(cont_p['OUTPUT'])
-
-
-        #extrair por expressao tudo maior que 2 vertices
-        expre_cont=processing.run("native:extractbyexpression",
-        {'INPUT': cont_p['OUTPUT'],
-        'EXPRESSION':'"NUMPOINTS" > 2 ',
-        'OUTPUT':'memory:'})
-        #QgsProject.instance().addMapLayer(expre_cont['OUTPUT'])
-
-        #REMOVER as duplicadas intersse
-        remove_du=processing.run("native:deleteduplicategeometries", {'INPUT':inter['OUTPUT'],
-        'OUTPUT':'memory:'})
-
-        #DISSOVER A CAMADA PRINCIPAL PARA SER QUEBRADA
-        disso=processing.run("native:dissolve", {'INPUT':parameters['INPUT'],
-        'FIELD':[],
-        'SEPARATE_DISJOINT':False,
-        'OUTPUT':'memory:'})
-
-
-        #Achar as intesesao que nao so de duas linhas
-        extrair=processing.run("native:extractbylocation",
-        {'INPUT':remove_du['OUTPUT'],
-        'INTERSECT':expre_cont['OUTPUT'],
-        'PREDICATE':[0],
-        'OUTPUT':'memory:'})
-
-        #quebra os dissolvidos com as interssecao que nao sao duas interssecao
-        quebra=processing.run("native:splitwithlines", {'INPUT':disso['OUTPUT'],
-        'LINES':extrair['OUTPUT'],
-        'OUTPUT':'memory:'})
-       
-        '''PARTE 2 do PROGRAMA // extrair as nascente depois extrair conforme os parametros'''
-
-
-
-        #Extrair o vertice 0 da camada dissolvidos quebrados 
-        verti_0=processing.run("native:extractspecificvertices",{
-        'INPUT':quebra['OUTPUT'],
-        'VERTICES':0,
-        'OUTPUT':'memory:'})
-
-        #Extrair o vertice -1 da camada quebrada a parti dos dissolvidos
-        verti_1=processing.run("native:extractspecificvertices",{
-        'INPUT':quebra['OUTPUT'],
-        'VERTICES':-1,
-        'OUTPUT':'memory:'})
-
-        #Mesclar (unir) os output dos vertices 0 e -1 
-        mescla=processing.run("native:mergevectorlayers",{
-        'LAYERS':[verti_0['OUTPUT'],verti_1['OUTPUT']],
-        'OUTPUT':'memory:'})
-
-
-        X_Y=processing.run("native:fieldcalculator", 
-        {'INPUT':mescla['OUTPUT'],
-        'FIELD_NAME':'cont',
-        'FIELD_LENGTH':0,
-        'FIELD_PRECISION':0,
-        'FORMULA':'$X + $Y\r\n\r\n',
-        'OUTPUT':'memory:'})
-        #output = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
-        #ver quantas vezes se repete a soma se reperti mais que duas quer dizer que é intercessao
-        rep=processing.run("native:fieldcalculator", {'INPUT':X_Y['OUTPUT'],
-        'FIELD_NAME':'repe',
-        'FIELD_TYPE':0,
-        'FIELD_LENGTH':0,
-        'FIELD_PRECISION':0,
-        'FORMULA':'count( "cont","cont" )',
-        'OUTPUT':'memory:'})
         
-        #Retira os simples
-        remov=processing.run("native:extractbyattribute",
-        {'INPUT':rep['OUTPUT'],
-        'FIELD':'repe',
-        'OPERATOR':0,
-        'VALUE':'1',
-        'OUTPUT':'memory:'})
+        duplicate_layer = QgsVectorLayer("Point?crs=EPSG:4326", "Vértices Duplicados", "memory")
+        provider = duplicate_layer.dataProvider()
         
-        #Achar os vertices que sao nascentes, extrair por localizaca (desunidos),  pela os mescla depois e se tem sobreposicao quer dizer que nao é nascente
-        nasc=processing.run("native:extractbylocation",
-        {'INPUT':mescla['OUTPUT'],
-        'INTERSECT':remov['OUTPUT'],
-        'PREDICATE':[0],
-        'OUTPUT':'memory:'})
- 
-        fields = nasc['OUTPUT'].fields()
-        field_names = [field.name() for field in fields]  # Lista os nomes das colunas
-        
-        
-        deleta_C=processing.run("native:deletecolumn", {'INPUT':nasc['OUTPUT'],
-        'COLUMN':field_names,
-        'OUTPUT':'memory:'})
-        
+        # Adiciona um campo ID da feição original
 
+     
+        vertex_counts = defaultdict(int)  # Dicionário para contar ocorrências dos vértices
+        vertex_features = defaultdict(list)  # Armazena feições para os vértices duplicados
+     
+        source = self.parameterAsSource(parameters, self.INPUT, context)
+        provider.addAttributes(source.fields())
+        duplicate_layer.updateFields()
+        
+        for feature in source.getFeatures():
+            geom = feature.geometry()
+            if geom.isMultipart():
+                lines = geom.asMultiPolyline()
+            else:
+                lines = [geom.asPolyline()]
+            
 
+           
+            for line in lines:
+                if len(line) > 1:
+                    for i, tipo in [(0, "start"), (-1, "end")]:
+                        point = QgsPointXY(line[i])
+                        vertex_counts[point] += 1
+                        vertex_features[point].append((feature, tipo))
+                            
+        # Segundo loop: Criar feições apenas para os vértices repetidos
+        features_to_add = []
+        for point, count in vertex_counts.items():
+            if count == 1:  # Se for um dangle
+                for feature, tipo in vertex_features[point]:
+                    new_feat = QgsFeature()
+                    new_feat.setGeometry(QgsGeometry.fromPointXY(point))
+                    new_feat.setAttributes(feature.attributes())  # Preserva atributos
+                    features_to_add.append(new_feat)
          
-        # Executar o algoritmo de interseção
-        FINAL = processing.run("native:intersection", {
-            'INPUT': deleta_C['OUTPUT'],
-            'OVERLAY': parameters['INPUT'],
-            'INPUT_FIELDS': [],
-            'OVERLAY_FIELDS': [],
-            'OVERLAY_FIELDS_PREFIX': '',
-            'OUTPUT':'memory:'})
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, FINAL['OUTPUT'].fields(), FINAL['OUTPUT'].wkbType(), FINAL['OUTPUT'].sourceCrs())
+        # Adiciona os pontos duplicados à camada
+        provider.addFeatures(features_to_add)
+        duplicate_layer.updateExtents()
+        #QgsProject.instance().addMapLayer(duplicate_layer)
+        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, duplicate_layer.fields(), duplicate_layer.wkbType(), duplicate_layer.sourceCrs())
 
             
-        for feature in FINAL['OUTPUT'].getFeatures():
+        for feature in duplicate_layer.getFeatures():
             geom = feature.geometry()
             new_feature = QgsFeature()
             new_feature.setGeometry(geom)
