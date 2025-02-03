@@ -1,0 +1,53 @@
+# This file contains metadata for your plugin.
+# This file should be included when you package your plugin.
+ 
+# Mandatory items:
+[general]
+name=Continuous Network Analysis (Processing)
+qgisMinimumVersion=3.0
+description=Processing plugin that adds several scripts to assist in decision making and validation of line-type vector networks by generating inconsistencies, further expanding the “Network Analysis” tool.
+version=0.3
+author=Matheus Oliveira de Freitas
+email=matheus18.1@yahoo.com.br
+
+about=	-The plugin focuses on analyzing vector networks. The plugin offers a range of procedures for analyzing line-type vector networks. The procedures are:
+	-Attribute Discontinuity Detector.
+	-Dangle Analysis.
+	-Extract Springs.
+	-Identify Dangles.
+	-Disconnected Network Segments.
+
+# End of mandatory metadata
+
+tracker=https://github.com/MatheusOliveiraFreitas/Continuous-Network-Analysis
+repository=https://github.com/MatheusOliveiraFreitas/Continuous-Network-Analysis
+ 
+# End of mandatory metadata
+ 
+# Recommended items:
+hasProcessingProvider=yes
+ 
+# Uncomment the following line and add your changelog:
+# changelog=script optimization, resolved some bugs
+ 
+# Tags are comma separated with spaces allowed
+tags=python, processing, provider, vector, script
+homepage=https://github.com/MatheusOliveiraFreitas/Continuous-Network-Analysis
+category=Analysis, Processing 
+icon=icon.png
+ 
+# experimental flag
+experimental=False
+ 
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
+ 
+# Since QGIS 3.8, a comma separated list of plugins to be installed
+# (or upgraded) can be specified. Check the documentation for more information.
+# plugin_dependencies=processing, provider, vector, script, python
+ 
+# Category of the plugin: Raster, Vector, Database or Web
+# category=Vector
+ 
+# If the plugin can run on QGIS Server.
+server=False
