@@ -68,7 +68,7 @@ class DANGOS_NAO_DANGOS(QgsProcessingAlgorithm):
             )
         )
 
-        layers=[ layer.name() for layer in QgsProject.instance().mapLayers().values()]
+        layers=[ layer.name() for layer in QgsProject.instance().mapLayers().values() if isinstance (layer, QgsVectorLayer)]
         
         self.addParameter(
             QgsProcessingParameterEnum(
@@ -139,31 +139,48 @@ class DANGOS_NAO_DANGOS(QgsProcessingAlgorithm):
         provider.addAttributes([QgsField("id", QVariant.Int)])
         output_layer.updateFields()      
 
-        
         layers = [layer for layer in QgsProject.instance().mapLayers().values() if layer.name() in selected_layer_names]
+         
+        output_layer.startEditing()
+        provider = output_layer.dataProvider()
+         
+        # Verifica se a coluna "Layer_Name" existe, se não, adiciona
+        
+
+        provider.addAttributes([QgsField("Layer_Name", QVariant.String, len=100)])
+        output_layer.updateFields()
+        field_index = provider.fields().lookupField("Layer_Name")  # Atualiza o índice do campo
+         
         for layer in layers:
             feedback.pushInfo(f'Selected Layer: {layer.name()}')
-            
-            buff_p=processing.run("native:buffer",
-            {'INPUT':layer.name(),
-            'DISTANCE': 1e-05,
-            'DISSOLVE': False,
-            'END_CAP_STYLE': 0,
-            'JOIN_STYLE':0,
-            'OUTPUT': 'memory:'}, context=context, feedback=feedback)
-            buffer_layer = buff_p['OUTPUT']
              
-            for feature in buffer_layer.getFeatures():
+                # Criar buffer da camada de entrada
+            buff_p = processing.run("native:buffer", {
+                    'INPUT': layer,
+                    'DISTANCE': 0.000001,
+                    'DISSOLVE': False,
+                    'END_CAP_STYLE': 0,
+                    'JOIN_STYLE': 0,
+                    'OUTPUT': 'TEMPORARY_OUTPUT'
+                }, context=context, feedback=feedback)['OUTPUT']
+             
+            for feature in buff_p.getFeatures():
                 new_feature = QgsFeature(output_layer.fields())
                 new_feature.setGeometry(feature.geometry())
-                new_feature.setAttributes([feature.id()])  
+             
+                # Copiar os atributos da feature original
+                attributes = feature.attributes()
+             
+                # Adicionar o nome da camada na coluna "Layer_Name"
+                
+                while len(attributes) <= field_index:  # Evita erro de índice
+                    attributes.append(None)
+                attributes[field_index] = layer.name()
+         
+                new_feature.setAttributes(attributes)
                 provider.addFeature(new_feature)
-                  
-            provider.addAttributes([QgsField("id", QVariant.Int)])
-            output_layer.updateFields()
-            # Atualiza a camada 
-            output_layer.updateExtents()
-            output_layer.updateFields()
+         
+            output_layer.commitChanges()
             
 
             # Adiciona a camada de saída ao projeto
@@ -177,28 +194,22 @@ class DANGOS_NAO_DANGOS(QgsProcessingAlgorithm):
         #output = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
         #output2 = self.parameterAsOutputLayer(parameters, self.OUTPUT2, context)        
         
-        deleta_C=processing.run("native:deletecolumn", {'INPUT':nasc['OUTPUT'],
+        '''deleta_C=processing.run("native:deletecolumn", {'INPUT':nasc['OUTPUT'],
         'COLUMN':field_names,
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'})'''
         
         dan=processing.run("native:extractbylocation",
-        {'INPUT':deleta_C['OUTPUT'],
+        {'INPUT':nasc['OUTPUT'],
         'INTERSECT':output_layer,
         'PREDICATE':[2],
         'OUTPUT':'memory:'}) 
         
-        criar_id_1=processing.run("native:fieldcalculator", {'INPUT':dan['OUTPUT'],
-        'FIELD_NAME':'id',
-        'FIELD_TYPE':0,
-        'FIELD_LENGTH':0,
-        'FIELD_PRECISION':0,
-        'FORMULA':'$id',
-        'OUTPUT':'memory:'})          
+      
         
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, criar_id_1['OUTPUT'].fields(), criar_id_1['OUTPUT'].wkbType(), criar_id_1['OUTPUT'].sourceCrs())
+        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, nasc['OUTPUT'].fields(), dan['OUTPUT'].wkbType(), dan['OUTPUT'].sourceCrs())
 
             
-        for feature in criar_id_1['OUTPUT'].getFeatures():
+        for feature in dan['OUTPUT'].getFeatures():
             geom = feature.geometry()
             new_feature = QgsFeature()
             new_feature.setGeometry(geom)
@@ -206,24 +217,18 @@ class DANGOS_NAO_DANGOS(QgsProcessingAlgorithm):
             sink.addFeature(new_feature)
         
         
-        dan_2=processing.run("native:extractbylocation",
-        {'INPUT':deleta_C['OUTPUT'],
-        'INTERSECT':output_layer,
-        'PREDICATE':[0],
+        dan_2=processing.run("native:intersection", {'INPUT':nasc['OUTPUT'],
+        'OVERLAY':output_layer,
+        'INPUT_FIELDS':[],
+        'OVERLAY_FIELDS':[],
+        'OVERLAY_FIELDS_PREFIX':'',
         'OUTPUT':'memory:'})
         
-        criar_id_2=processing.run("native:fieldcalculator", {'INPUT':dan_2['OUTPUT'],
-        'FIELD_NAME':'id',
-        'FIELD_TYPE':0,
-        'FIELD_LENGTH':0,
-        'FIELD_PRECISION':0,
-        'FORMULA':'$id',
-        'OUTPUT':'memory:'})      
-        
-        (sink2, dest_id2) = self.parameterAsSink(parameters, self.OUTPUT2, context, criar_id_2['OUTPUT'].fields(), criar_id_2['OUTPUT'].wkbType(), criar_id_2['OUTPUT'].sourceCrs())
+
+        (sink2, dest_id2) = self.parameterAsSink(parameters, self.OUTPUT2, context, dan_2['OUTPUT'].fields(), dan_2['OUTPUT'].wkbType(), dan_2['OUTPUT'].sourceCrs())
 
             
-        for feature in criar_id_2['OUTPUT'].getFeatures():
+        for feature in dan_2['OUTPUT'].getFeatures():
             geom_2 = feature.geometry()
             nova_Feicao = QgsFeature()
             nova_Feicao.setGeometry(geom_2)

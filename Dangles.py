@@ -109,7 +109,10 @@ class Dangles(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 #######
 
-        crs=QgsProject.instance().crs()
+        input_layer = self.parameterAsVectorLayer(parameters, 'INPUT', context)  # Obtém a camada como QgsVectorLayer
+        
+        crs = input_layer.crs().authid().split(':')[-1]  # Obtém o código EPSG
+
         
         duplicate_layer = QgsVectorLayer(f"Point?crs=EPSG:{crs}", "Vértices Duplicados", "memory")
         provider = duplicate_layer.dataProvider()
