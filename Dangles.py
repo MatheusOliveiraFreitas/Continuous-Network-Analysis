@@ -109,10 +109,11 @@ class Dangles(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 #######
 
-        input_layer = self.parameterAsVectorLayer(parameters, 'INPUT', context)  # Obtém a camada como QgsVectorLayer
+        camada=processing.run("native:splitwithlines", {'INPUT':parameters['INPUT'],
+        'LINES':parameters['INPUT'],
+        'OUTPUT':'memory:'})
         
-        crs = input_layer.crs().authid().split(':')[-1]  # Obtém o código EPSG
-
+        crs = camada['OUTPUT'].crs()
         
         duplicate_layer = QgsVectorLayer(f"Point?crs=EPSG:{crs}", "Vértices Duplicados", "memory")
         provider = duplicate_layer.dataProvider()
@@ -122,12 +123,14 @@ class Dangles(QgsProcessingAlgorithm):
      
         vertex_counts = defaultdict(int)  # Dicionário para contar ocorrências dos vértices
         vertex_features = defaultdict(list)  # Armazena feições para os vértices duplicados
-     
+
+
+        
         source = self.parameterAsSource(parameters, self.INPUT, context)
         provider.addAttributes(source.fields())
         duplicate_layer.updateFields()
         
-        for feature in source.getFeatures():
+        for feature in camada['OUTPUT'].getFeatures():
             geom = feature.geometry()
             if geom.isMultipart():
                 lines = geom.asMultiPolyline()
