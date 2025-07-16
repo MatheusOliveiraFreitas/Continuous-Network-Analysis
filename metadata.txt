@@ -6,16 +6,28 @@
 name=Continuous Network Analysis (Processing)
 qgisMinimumVersion=3.0
 description=Processing plugin that adds several scripts to assist in decision making and validation of line-type vector networks by generating inconsistencies, further expanding the “Network Analysis” tool.
-version=0.3
+version=0.5
 author=Matheus Oliveira de Freitas
 email=matheus18.1@yahoo.com.br
 
 about=	-The plugin focuses on analyzing vector networks. The plugin offers a range of procedures for analyzing line-type vector networks. The procedures are:
-	-Attribute Discontinuity Detector.
-	-Dangle Analysis.
-	-Extract Springs.
-	-Identify Dangles.
-	-Disconnected Network Segments.
+	
+	🔹Attribute Discontinuity Detector.
+		*It performs a series of processes to identify discontinuities of a selected attribute within a line-type vector network and generates a file that points out the attribute discontinuities along the network.
+	🔹Dangle Analysis.
+		*Identifies dangles (line sections that do not connect to other lines) in a vector network layer and checks the overlap of these dangles with several layers selected by the user.
+	🔹Extract Springs.
+		*The program performs a series of processes to identify and extract sources from a vector network.
+	🔹Identify Dangles.
+		*Finds dangles (loose ends) in a line type layer
+	🔹Disconnected Network Segments.
+		*Performs a series of procedures to verify the topological connectivity of a line layer from an initial layer.
+	🔹Pseudo-node.
+		*Identifies pseudo-nodes in a line layer and returns points with the attributes of the two segments connected at that node.
+	🔹Pseudo-node Analysis.
+		*It analyzes whether the breaks (Pseudo-node) are topologically connected to the vertices of the layers that the user selected.
+	🔹Vertex Connection Counter.
+		*Calculates which vertices in a line network are connected to other vertices, and how many connections each has.
 
 # End of mandatory metadata
 
@@ -28,7 +40,7 @@ repository=https://github.com/MatheusOliveiraFreitas/Continuous-Network-Analysis
 hasProcessingProvider=yes
  
 # Uncomment the following line and add your changelog:
-# changelog=script optimization, resolved some bugs
+# changelog=script optimization, resolved some bugs,creation of three more algorithms
  
 # Tags are comma separated with spaces allowed
 tags=python, processing, provider, vector, script

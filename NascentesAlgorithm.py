@@ -303,8 +303,24 @@ class NascentesAlgorithm(QgsProcessingAlgorithm):
         'INTERSECT':buff['OUTPUT'],
         'PREDICATE':[2],
         'OUTPUT': 'memory:'})
+               #QgsProject.instance().addMapLayer(nasc_sem_F['OUTPUT'])
+
+        provider = nasc_sem_F['OUTPUT'].dataProvider()
+        fields = nasc_sem_F['OUTPUT'].fields()
+            
+        # Nome da única coluna que deseja manter
+        coluna_a_manter = 'Compri'
+         
+        # Lista de colunas para remover (todas, exceto a escolhida)
+        colunas_para_remover = [field.name() for field in fields if field.name() != coluna_a_manter]
+         
+        # Removendo as colunas
+        provider.deleteAttributes([fields.indexFromName(col) for col in colunas_para_remover])
+            
+        # Atualiza a camada
+        nasc_sem_F['OUTPUT'].updateFields() 
         
-        #QgsProject.instance().addMapLayer(nasc_sem_F['OUTPUT'])
+
         (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, nasc_sem_F['OUTPUT'].fields(), nasc_sem_F['OUTPUT'].wkbType(), nasc_sem_F['OUTPUT'].sourceCrs())
 
             
@@ -330,12 +346,14 @@ class NascentesAlgorithm(QgsProcessingAlgorithm):
         'COLUMN':field_names_2,
         'OUTPUT':'memory:'})
         
+        #QgsProject.instance().addMapLayer(deleta_Pont['OUTPUT'])
         nas_Pon=processing.run("native:intersection", {'INPUT':deleta_Pont['OUTPUT'],
         'OVERLAY':parameters['INPUT'],
         'INPUT_FIELDS':[],
         'OVERLAY_FIELDS':[],
         'OVERLAY_FIELDS_PREFIX':'',
         'OUTPUT':'memory:'})
+        #QgsProject.instance().addMapLayer(nas_Pon['OUTPUT'])
         
         nasc_Pont_2=processing.run("native:intersection", {'INPUT':nas_Pon['OUTPUT'],
         'OVERLAY':nasc_sem_F['OUTPUT'],
@@ -343,6 +361,8 @@ class NascentesAlgorithm(QgsProcessingAlgorithm):
         'OVERLAY_FIELDS':[],
         'OVERLAY_FIELDS_PREFIX':'',
         'OUTPUT':'memory:'})
+        
+        #QgsProject.instance().addMapLayer(nasc_sem_F['OUTPUT'])
         
         (sink, dest_id_2) = self.parameterAsSink(parameters, self.OUTPUT2, context, nasc_Pont_2['OUTPUT'].fields(), nasc_Pont_2['OUTPUT'].wkbType(), nasc_Pont_2['OUTPUT'].sourceCrs())
 

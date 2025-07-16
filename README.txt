@@ -23,6 +23,16 @@ Vector Network Analysis is a processing plugin for Qgis that provides several to
 -  Excerpt Disconnected: The network sections that are not topologically connected to the initial layer, that is, the disconnected sections.
 -  Connected Section: The network sections that are topologically connected to the initial layer.
 
+***"Pseudo-node"***: Identifies pseudo-nodes in a line layer and returns points with the attributes of the two segments connected at that node.
+
+***"Pseudo-node Analysis"***: It analyzes whether the breaks (Pseudo-node) are topologically connected to the vertices of the layers that the user selected.
+
+-  Returns Non_Overlap Pseudo-node: Pseudo-node that is not topologically connected to any vertex of the selected layers.
+-  Returns Overlapping Pseudo-node: Pseudo-node that is topologically connected to any vertex of the selected layers, in addition to having a column that identifies which layer each vertex is topologically connected to.
+
+***"Vertex Connection Counter"***: Calculates which vertices in a line network are connected to other vertices, and how many connections each has.
+-  Returns points only at vertices with more than one connection (degree > 1), with a 'Vertex' field indicating the number of connections at each point
+
 Português:
 
 **email para contato**: matheus18.1@yahoo.com
@@ -49,6 +59,15 @@ Assim podendo gerar dois arquivos:
 
 -	Excerpt Disconnected: Os trechos da rede que não estão conectados topologicamente com a camada inicial, ou seja, os trechos desconectados.
 -	Connected Section: Os trechos da rede que estão conectados topologicamente com a camada inicial
+
+***"Pseudo-node"***: Identifica pseudonós em uma camada de linha e retorna pontos com os atributos dos dois segmentos conectados naquele nó.
+
+***"Pseudo-node Analysis"***: Ele analisa se as quebras (pseudo-nó) estão topologicamente conectadas aos vértices das camadas que o usuário selecionou.
+-  Returns Non_Overlap Pseudo-node: Pseudonó que não está topologicamente conectado a nenhum vértice das camadas selecionadas.
+-  Returns Overlapping Pseudo-node: Pseudonó que está topologicamente conectado a qualquer vértice das camadas selecionadas, além de ter uma coluna que identifica a qual camada cada vértice está topologicamente conectado.
+
+***"Vertex Connection Counter"***: Calcula quais vértices em uma rede de linhas estão conectados a outros vértices e quantas conexões cada um tem.
+-  Retorna pontos apenas em vértices com mais de uma conexão (grau > 1), com um campo 'Vértice' indicando o número de conexões em cada ponto
 
 For more information, see the PyQGIS Developer Cookbook at:
 https://github.com/MatheusOliveiraFreitas/Continuous-Network-Analysis

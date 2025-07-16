@@ -39,6 +39,9 @@ from .NascentesAlgorithm import NascentesAlgorithm
 from .ConectividadeAlgorithm import ConectividadeAlgorithm
 from .DANGOS_NAO_DANGOS import DANGOS_NAO_DANGOS
 from .Dangles import Dangles
+from .Ponto_duplo import Pseudo_node_Analysis
+from .Cont_numero_vert import Cont_numero_vert
+from .Pseudo_node import Pseudo_node
 
 
 class ContinuousNetworkAnalysisProvider(QgsProcessingProvider):
@@ -65,6 +68,9 @@ class ContinuousNetworkAnalysisProvider(QgsProcessingProvider):
         self.addAlgorithm(ConectividadeAlgorithm())
         self.addAlgorithm(DANGOS_NAO_DANGOS())
         self.addAlgorithm(Dangles())
+        self.addAlgorithm(Pseudo_node_Analysis())
+        self.addAlgorithm(Cont_numero_vert())
+        self.addAlgorithm(Pseudo_node())
         # add additional algorithms here
         # self.addAlgorithm(MyOtherAlgorithm())
 
