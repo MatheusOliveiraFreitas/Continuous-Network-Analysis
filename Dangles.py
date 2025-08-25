@@ -113,9 +113,10 @@ class Dangles(QgsProcessingAlgorithm):
         'LINES':parameters['INPUT'],
         'OUTPUT':'memory:'})
         
-        crs = camada['OUTPUT'].crs()
+       
         
-        duplicate_layer = QgsVectorLayer(f"Point?crs=EPSG:{crs}", "Vértices Duplicados", "memory")
+        crs = source.sourceCrs()
+        duplicate_layer = QgsVectorLayer(f"Point?crs={crs.authid()}", "Vértices Duplicados", "memory")
         provider = duplicate_layer.dataProvider()
         
         # Adiciona um campo ID da feição original
@@ -141,16 +142,16 @@ class Dangles(QgsProcessingAlgorithm):
            
             for line in lines:
                 if len(line) > 1:
-                    for i, tipo in [(0, "start"), (-1, "end")]:
+                    for i in [(0), (-1)]:
                         point = QgsPointXY(line[i])
                         vertex_counts[point] += 1
-                        vertex_features[point].append((feature, tipo))
+                        vertex_features[point].append((feature))
                             
         # Segundo loop: Criar feições apenas para os vértices repetidos
         features_to_add = []
         for point, count in vertex_counts.items():
             if count == 1:  # Se for um dangle
-                for feature, tipo in vertex_features[point]:
+                for feature in vertex_features[point]:
                     new_feat = QgsFeature()
                     new_feat.setGeometry(QgsGeometry.fromPointXY(point))
                     new_feat.setAttributes(feature.attributes())  # Preserva atributos
