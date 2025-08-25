@@ -109,11 +109,23 @@ class Dangles(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 #######
 
-        camada=processing.run("native:splitwithlines", {'INPUT':parameters['INPUT'],
-        'LINES':parameters['INPUT'],
-        'OUTPUT':'memory:'})
+        try:   
+            camada=processing.run("native:splitwithlines", {'INPUT':parameters['INPUT'],
+            'LINES':parameters['INPUT'],
+            'OUTPUT':'memory:'},
+            context=context,
+            feedback=feedback, 
+            is_child_algorithm=True)
         
-     
+        except  Exception as e:
+            if feedback.isCanceled():
+                #Se canselar o processing não vai mostra para o usuario
+                return {} 
+            else:
+                raise e
+        
+        if feedback.isCanceled():
+            return {}     
         
         # Adiciona um campo ID da feição original
         (sink, dest_id) = self.parameterAsSink(
@@ -128,9 +140,14 @@ class Dangles(QgsProcessingAlgorithm):
         vertex_counts = defaultdict(int)  # Dicionário para contar ocorrências dos vértices
         vertex_features = defaultdict(list)  # Armazena feições para os vértices duplicados
 
+        output_layer_identifier = camada['OUTPUT']
 
+        # Usamos uma função do QGIS para carregar a camada a partir de seu identificador.
+        split_source = QgsProcessingUtils.mapLayerFromString(output_layer_identifier, context)
         
-        for feature in camada['OUTPUT'].getFeatures():
+        for feature in split_source.getFeatures():
+            if feedback.isCanceled():
+                return {}
             geom = feature.geometry()
             if geom.isMultipart():
                 lines = geom.asMultiPolyline()
@@ -146,18 +163,25 @@ class Dangles(QgsProcessingAlgorithm):
                         vertex_counts[point] += 1
                         vertex_features[point].append((feature))
 
-                            
+        if feedback.isCanceled():
+            return {}                       
+            
         # Segundo loop: Criar feições apenas para os vértices repetidos
         features_to_add = []
         for point, count in vertex_counts.items():
+            if feedback.isCanceled():
+                return {}
             if count == 1:  # Se for um dangle
-                for feature in vertex_features[point]:
-                    new_feat = QgsFeature()
-                    new_feat.setGeometry(QgsGeometry.fromPointXY(point))
-                    new_feat.setAttributes(feature.attributes())  # Preserva atributos
-                    sink.addFeature(new_feat, QgsFeatureSink.FastInsert)
-
-
+                original_feature = vertex_features[point][0] # <-- Acessa o único item da lista
+                
+                new_feat = QgsFeature()
+                new_feat.setGeometry(QgsGeometry.fromPointXY(point))
+                new_feat.setAttributes(original_feature.attributes())  # Preserva atributos
+                sink.addFeature(new_feat, QgsFeatureSink.FastInsert)
+                    
+        if feedback.isCanceled():
+            return {} 
+        
             
 
         
