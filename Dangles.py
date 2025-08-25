@@ -113,23 +113,22 @@ class Dangles(QgsProcessingAlgorithm):
         'LINES':parameters['INPUT'],
         'OUTPUT':'memory:'})
         
-       
-        
-        crs = source.sourceCrs()
-        duplicate_layer = QgsVectorLayer(f"Point?crs={crs.authid()}", "Vértices Duplicados", "memory")
-        provider = duplicate_layer.dataProvider()
+     
         
         # Adiciona um campo ID da feição original
-
+        (sink, dest_id) = self.parameterAsSink(
+            parameters,
+            self.OUTPUT,
+            context,
+            source.fields(), # Preserva os mesmos campos da camada de entrada
+            QgsWkbTypes.Point, # A saída será de pontos
+            source.sourceCrs() # Usa o mesmo CRS da camada de entrada
+        )
      
         vertex_counts = defaultdict(int)  # Dicionário para contar ocorrências dos vértices
         vertex_features = defaultdict(list)  # Armazena feições para os vértices duplicados
 
 
-        
-        source = self.parameterAsSource(parameters, self.INPUT, context)
-        provider.addAttributes(source.fields())
-        duplicate_layer.updateFields()
         
         for feature in camada['OUTPUT'].getFeatures():
             geom = feature.geometry()
@@ -146,6 +145,7 @@ class Dangles(QgsProcessingAlgorithm):
                         point = QgsPointXY(line[i])
                         vertex_counts[point] += 1
                         vertex_features[point].append((feature))
+
                             
         # Segundo loop: Criar feições apenas para os vértices repetidos
         features_to_add = []
@@ -155,21 +155,11 @@ class Dangles(QgsProcessingAlgorithm):
                     new_feat = QgsFeature()
                     new_feat.setGeometry(QgsGeometry.fromPointXY(point))
                     new_feat.setAttributes(feature.attributes())  # Preserva atributos
-                    features_to_add.append(new_feat)
-         
-        # Adiciona os pontos duplicados à camada
-        provider.addFeatures(features_to_add)
-        duplicate_layer.updateExtents()
-        #QgsProject.instance().addMapLayer(duplicate_layer)
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, duplicate_layer.fields(), duplicate_layer.wkbType(), duplicate_layer.sourceCrs())
+                    sink.addFeature(new_feat, QgsFeatureSink.FastInsert)
+
 
             
-        for feature in duplicate_layer.getFeatures():
-            geom = feature.geometry()
-            new_feature = QgsFeature()
-            new_feature.setGeometry(geom)
-            new_feature.setAttributes(feature.attributes())
-            sink.addFeature(new_feature)
+
         
         return {self.OUTPUT: dest_id}
             
