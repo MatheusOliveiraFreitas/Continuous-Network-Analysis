@@ -136,7 +136,7 @@ class Cont_numero_vert(QgsProcessingAlgorithm):
         
         
         source = self.parameterAsSource(parameters, self.INPUT, context)
-        coluna = QgsField("Vertice", QVariant.String)
+        coluna = QgsField("Vertice", QVariant.Int)
         provider.addAttributes([coluna])
         duplicate_layer.updateFields()
         
