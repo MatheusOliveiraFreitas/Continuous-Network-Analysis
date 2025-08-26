@@ -25,26 +25,9 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterField)
 from qgis import processing
 from qgis.core import QgsProject
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsWkbTypes, QgsVectorFileWriter,QgsVectorLayer,QgsField,QgsFeature
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsWkbTypes, QgsVectorFileWriter,QgsVectorLayer,QgsField,QgsFeature,QgsProcessingUtils
 from qgis.PyQt.QtCore import QVariant
 class DANGOS_NAO_DANGOS(QgsProcessingAlgorithm):
-    """
-    This is an example algorithm that takes a vector layer and
-    creates a new identical one.
-
-    It is meant to be used as an example of how to create your own
-    algorithms and explain methods and variables used to do it. An
-    algorithm like this will be available in all elements, and there
-    is not need for additional work.
-
-    All Processing algorithms should extend the QgsProcessingAlgorithm
-    class.
-    """
-
-    # Constants used to refer to parameters and outputs. They will be
-    # used when calling the algorithm from another algorithm, or when
-    # calling from the QGIS console.
-
     INPUT = 'INPUT'
 
     LAYERS='LAYERS'
@@ -86,13 +69,13 @@ class DANGOS_NAO_DANGOS(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('DANGLES_Non_Overlap')
+                self.tr('DANGLES_Overlapping')
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT2,
-                self.tr('DANGLES_Overlapping')
+                self.tr('DANGLES_Non_Overlap')
             )
         )
         
@@ -102,140 +85,197 @@ class DANGOS_NAO_DANGOS(QgsProcessingAlgorithm):
 
 
     def processAlgorithm(self, parameters, context, feedback):
-        """
-        Here is where the processing itself takes place.
-        """
-
-        # Retrieve the feature source and sink. The 'dest_id' variable is used
-        # to uniquely identify the feature sink, and must be included in the
-        # dictionary returned by the processAlgorithm function.
-        source = self.parameterAsSource(
-            parameters,
-            self.INPUT,
-            context
-        )
-
-        # If source was not found, throw an exception to indicate that the algorithm
-        # encountered a fatal error. The exception text can be any string, but in this
-        # case we use the pre-built invalidSourceError method to return a standard
-        # helper text for when a source cannot be evaluated
+        source = self.parameterAsSource(parameters, self.INPUT, context)
         if source is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
-#######
 
 
-        
 
-        
-        nasc=processing.run("Continuous_Network_Analysis:Identify Dangles", {'INPUT':parameters['INPUT'],
-        'OUTPUT':'memory:'})
-        crs_in=nasc['OUTPUT'].sourceCrs()
+        try:
+            nasc=processing.run("Continuous_Network_Analysis:Identify Dangles", {'INPUT':parameters['INPUT'],
+            'OUTPUT':'memory:'}, context=context, feedback=feedback, is_child_algorithm=True)
+            
+            nas_ofici=QgsProcessingUtils.mapLayerFromString(nasc['OUTPUT'], context)
+            
+            nas_ofici.startEditing()
+            nasc_provider = nas_ofici.dataProvider()
+
+            index_status = nasc_provider.hasSpatialIndex()            
+            if index_status== 1:
+                #feedback.pushInfo('Sem indice espacial')
+                processing.run("native:createspatialindex", 
+                {'INPUT': nas_ofici}, 
+                context=context, feedback=feedback, is_child_algorithm=True)
+            
+            nasc_provider.addAttributes([QgsField("layer_overlap", QVariant.String, len=100)])
+            nas_ofici.updateFields()            
+            
+        except Exception as erro:
+            if feedback.isCanceled():
+                return {}
+            else:
+                raise erro
+ 
         selected_indices = self.parameterAsEnums(parameters, self.LAYERS, context)
         selected_layer_names = [self.parameterDefinition(self.LAYERS).options()[i] for i in selected_indices]
         #feedback.pushInfo(f'Selected Layer: {selected_layer_name}')
-        output_layer = QgsVectorLayer(f'Polygon?crs=EPSG:{crs_in}', 'Buffer Output', 'memory')
-        provider = output_layer.dataProvider()
-
-        provider.addAttributes([QgsField("id", QVariant.Int)])
-        output_layer.updateFields()      
+       
 
         layers = [layer for layer in QgsProject.instance().mapLayers().values() if layer.name() in selected_layer_names]
          
-        output_layer.startEditing()
-        provider = output_layer.dataProvider()
-         
-        # Verifica se a coluna "Layer_Name" existe, se não, adiciona
-        
 
-        provider.addAttributes([QgsField("Layer_Name", QVariant.String, len=100)])
-        output_layer.updateFields()
-        field_index = provider.fields().lookupField("Layer_Name")  # Atualiza o índice do campo
-         
-        for layer in layers:
-            feedback.pushInfo(f'Selected Layer: {layer.name()}')
-             
-                # Criar buffer da camada de entrada
-            buff_p = processing.run("native:buffer", {
-                    'INPUT': layer,
-                    'DISTANCE': 0.000001,
-                    'DISSOLVE': False,
-                    'END_CAP_STYLE': 0,
-                    'JOIN_STYLE': 0,
-                    'OUTPUT': 'TEMPORARY_OUTPUT'
-                }, context=context, feedback=feedback)['OUTPUT']
-             
-            for feature in buff_p.getFeatures():
-                new_feature = QgsFeature(output_layer.fields())
-                new_feature.setGeometry(feature.geometry())
-             
-                # Copiar os atributos da feature original
-                attributes = feature.attributes()
-             
-                # Adicionar o nome da camada na coluna "Layer_Name"
+        
+        #Gerando as camadas de Saida
+        (sink, dest_id) = self.parameterAsSink(
+            parameters,
+            self.OUTPUT,
+            context,
+            nas_ofici.fields(), # Preserva os mesmos campos da camada de entrada
+            QgsWkbTypes.Point, # A saída será de pontos
+            source.sourceCrs() # Usa o mesmo CRS da camada de entrada
+        )    
+        (sink_2, dest_id_2) = self.parameterAsSink(
+            parameters,
+            self.OUTPUT2,
+            context,
+            source.fields(), # Preserva os mesmos campos da camada de entrada
+            QgsWkbTypes.Point, # A saída será de pontos
+            source.sourceCrs() # Usa o mesmo CRS da camada de entrada
+        )    
+
+    
+        lista_de_pontos=[]
+        lista_de_poligonos=[]
+        lista_de_Linhas=[]
+        buffers_merge_final = [] 
+        try:
+            for layer in layers:
+                tipo = layer.wkbType()
+
+                    
+                if tipo in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString]:
+                    
+                    lista_de_Linhas.append(layer)
+                    
+                elif tipo in [QgsWkbTypes.Point, QgsWkbTypes.MultiPoint]:
+                    lista_de_pontos.append(layer)
+                    
+                elif tipo in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon]:
+                    lista_de_poligonos.append(layer)
+                    
+            if lista_de_pontos:
+                #Mesclar todas as camadas do tipo ponto
+                merge_point_result = processing.run(
+                "native:mergevectorlayers",
+                {'LAYERS': lista_de_pontos, 'OUTPUT': 'memory:'}, context=context, feedback=feedback, is_child_algorithm=True)
+                merge_point_result_ofic=QgsProcessingUtils.mapLayerFromString(merge_point_result['OUTPUT'], context)
                 
-                while len(attributes) <= field_index:  # Evita erro de índice
-                    attributes.append(None)
-                attributes[field_index] = layer.name()
-         
+                #Fazer o buffer do merge do tipo ponto
+                buffer_point = processing.run("native:buffer",
+                {'INPUT': merge_point_result_ofic, 'DISTANCE': 0.000001, 'DISSOLVE': False, 'OUTPUT': 'memory:'}, context=context, feedback=feedback, is_child_algorithm=True)
+                buffer_point_ofic=QgsProcessingUtils.mapLayerFromString(buffer_point['OUTPUT'], context)
+                
+                #Adicionar em uma lista 
+                buffers_merge_final.append(buffer_point_ofic)
+                
+            if lista_de_Linhas:
+                #Mesclar todas as camadas do tipo ponto
+                merge_Linha_result = processing.run(
+                "native:mergevectorlayers",
+                {'LAYERS': lista_de_Linhas, 'OUTPUT': 'memory:'}, context=context, feedback=feedback, is_child_algorithm=True)
+                merge_Linha_result_ofic=QgsProcessingUtils.mapLayerFromString(merge_Linha_result['OUTPUT'], context)
+                
+                #Fazer o buffer do merge do tipo Linha
+                buffer_Linha = processing.run("native:buffer",
+                {'INPUT': merge_Linha_result_ofic, 'DISTANCE': 0.000001, 'DISSOLVE': False, 'OUTPUT': 'memory:'}, context=context, feedback=feedback, is_child_algorithm=True)
+                buffer_Linha_ofic=QgsProcessingUtils.mapLayerFromString(buffer_Linha['OUTPUT'], context)
+                
+                #Adicionar em uma lista 
+                buffers_merge_final.append(buffer_Linha_ofic)
+                
+            if lista_de_poligonos:
+                #Mesclar todas as camadas do tipo poligonos
+                merge_Poligono_result = processing.run(
+                "native:mergevectorlayers",
+                {'LAYERS': lista_de_poligonos, 'OUTPUT': 'TEMPORARY_OUTPUT'}, context=context, feedback=feedback, is_child_algorithm=True)
+                merge_Poligono_result_ofic=QgsProcessingUtils.mapLayerFromString(merge_Poligono_result['OUTPUT'], context)
+                
+                #Nao precisa de um buffer para o poligono se torna um poligono
+                buffers_merge_final.append(merge_Poligono_result_ofic)
+        except Exception as erro:
+            if feedback.isCanceled():
+                return {}
+            else:
+                raise erro
+    
+        try:
+            Juntar = processing.run(
+            "native:mergevectorlayers",
+            {'LAYERS': buffers_merge_final,
+            'OUTPUT': 'memory:'}, context=context, feedback=feedback, is_child_algorithm=True)
+            Juntar_ofic=QgsProcessingUtils.mapLayerFromString(Juntar['OUTPUT'], context)
+            
+            Juntar_ofic_provider = Juntar_ofic.dataProvider()
+
+            index_status_Juntar = Juntar_ofic_provider.hasSpatialIndex()            
+            if index_status_Juntar== 1:
+                #feedback.pushInfo('Sem indice espacial')
+                processing.run("native:createspatialindex", 
+                {'INPUT': Juntar_ofic}, 
+                context=context, feedback=feedback, is_child_algorithm=True)           
+            
+            
+            
+            Campo_Layer_index_Prin = nas_ofici.fields().indexOf("layer_overlap") # Atualiza o índice do campo
+     
+            
+            extrac_dango=processing.run("native:intersection", {
+            'INPUT': nas_ofici,
+            'OVERLAY': Juntar_ofic,
+            'INPUT_FIELDS': [], # Selecione aqui os campos do dangle que quer manter
+            'OVERLAY_FIELDS': [], # Selecione os campos da camada de sobreposição que quer adicionar
+            'OUTPUT': 'TEMPORARY_OUTPUT'
+            }, context=context, feedback=feedback, is_child_algorithm=True)  
+            
+           
+            
+            dango_ofici=QgsProcessingUtils.mapLayerFromString(extrac_dango['OUTPUT'], context)
+            #QgsProject.instance().addMapLayer(dango_ofici)
+            field_index = dango_ofici.fields().indexOf("layer")          
+            
+            for dango in dango_ofici.getFeatures():
+                geometria_dango=dango.geometry()
+                new_feature = QgsFeature()
+                new_feature.setGeometry(geometria_dango)
+
+                # copia atributos da camada principal
+                attributes = dango.attributes()
+                #Adcionar valor layer_overla/ Neste caso por exemplo eu já gerei a coluna então eu preciso pegar 2 indece o da camada principal
+                #e falar qual indece tipo pega o atributo da coluna da camada secundaria seu indece é 3 e colocar na coluna principal com indice 10
+                valor_sec = dango.attributes()[field_index]
+                attributes[Campo_Layer_index_Prin] = valor_sec
+                        
                 new_feature.setAttributes(attributes)
-                provider.addFeature(new_feature)
-         
-            output_layer.commitChanges()
+                sink.addFeature(new_feature, QgsFeatureSink.FastInsert)
+
+            extrac_nao_dango=processing.run("native:extractbylocation",
+            {'INPUT':nas_ofici,
+            'INTERSECT':Juntar_ofic,
+            'PREDICATE':[2],
+            'OUTPUT':'memory:' },
+            context=context, feedback=feedback, is_child_algorithm=True)
+            nao_dango_ofici=QgsProcessingUtils.mapLayerFromString(extrac_nao_dango['OUTPUT'], context)
             
-
-            # Adiciona a camada de saída ao projeto
-            #QgsProject.instance().addMapLayer(output_layer)
+            for feature in nao_dango_ofici.getFeatures():
+                sink_2.addFeature(feature, QgsFeatureSink.FastInsert)
+        except Exception as erro:
+            if feedback.isCanceled():
+                return {}
+            else:
+                raise erro               
             
-
-         
-        fields = nasc['OUTPUT'].fields()
-        field_names = [field.name() for field in fields]  # Lista os nomes das colunas
-        
-        #output = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
-        #output2 = self.parameterAsOutputLayer(parameters, self.OUTPUT2, context)        
-        
-        '''deleta_C=processing.run("native:deletecolumn", {'INPUT':nasc['OUTPUT'],
-        'COLUMN':field_names,
-        'OUTPUT':'memory:'})'''
-        
-        dan=processing.run("native:extractbylocation",
-        {'INPUT':nasc['OUTPUT'],
-        'INTERSECT':output_layer,
-        'PREDICATE':[2],
-        'OUTPUT':'memory:'}) 
-        
-      
-        
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, nasc['OUTPUT'].fields(), dan['OUTPUT'].wkbType(), dan['OUTPUT'].sourceCrs())
-
             
-        for feature in dan['OUTPUT'].getFeatures():
-            geom = feature.geometry()
-            new_feature = QgsFeature()
-            new_feature.setGeometry(geom)
-            new_feature.setAttributes(feature.attributes())
-            sink.addFeature(new_feature)
-        
-        
-        dan_2=processing.run("native:intersection", {'INPUT':nasc['OUTPUT'],
-        'OVERLAY':output_layer,
-        'INPUT_FIELDS':[],
-        'OVERLAY_FIELDS':[],
-        'OVERLAY_FIELDS_PREFIX':'',
-        'OUTPUT':'memory:'})
-        
-
-        (sink2, dest_id2) = self.parameterAsSink(parameters, self.OUTPUT2, context, dan_2['OUTPUT'].fields(), dan_2['OUTPUT'].wkbType(), dan_2['OUTPUT'].sourceCrs())
-
-            
-        for feature in dan_2['OUTPUT'].getFeatures():
-            geom_2 = feature.geometry()
-            nova_Feicao = QgsFeature()
-            nova_Feicao.setGeometry(geom_2)
-            nova_Feicao.setAttributes(feature.attributes())
-            sink2.addFeature(nova_Feicao)       
-
-        return{'OUTPUT':dest_id,'OUTPUT2':dest_id2}
+        return {self.OUTPUT: dest_id, self.OUTPUT2:dest_id_2}
 
         
         
