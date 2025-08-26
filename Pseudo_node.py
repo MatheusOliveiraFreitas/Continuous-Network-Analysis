@@ -26,7 +26,7 @@ from qgis.core import (QgsProcessing,
 from qgis import processing
 from collections import defaultdict
 from qgis.PyQt.QtCore import QVariant
-from qgis.core import QgsProject
+from qgis.core import QgsProject,QgsFields
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsWkbTypes,QgsProcessingUtils,QgsFeature, QgsVectorLayer, QgsField,QgsPointXY,QgsGeometry
 class Pseudo_node(QgsProcessingAlgorithm):
     """
@@ -102,7 +102,7 @@ class Pseudo_node(QgsProcessingAlgorithm):
         elif tipo == QgsWkbTypes.MultiPolygon:
             rep = 'MultiPolygon'
         return rep
-    
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
@@ -129,16 +129,25 @@ class Pseudo_node(QgsProcessingAlgorithm):
         vertex_features = defaultdict(list)  # Armazena feições para os vértices duplicados
         source = self.parameterAsSource(parameters, self.INPUT, context)
 
-        crs = source.sourceCrs()
+        colunas=QgsFields()
+        colunas_originais = source.fields()
         
-        duplicate_layer = QgsVectorLayer(f"Point?crs=EPSG:{crs.authid()}", "Vértices Duplicados", "memory")       
-        provider =duplicate_layer.dataProvider()
+        for campos in source.fields():
+            colunas.append(campos)
         
-        source_fields = source.fields()
-        provider.addAttributes(source_fields.toList())
-        provider.addAttributes([QgsField("IDIDID", QVariant.String)])
-        duplicate_layer.updateFields()
-
+        for campos_2 in source.fields():
+            Nome_campo = f"{campos_2.name()}_2"
+            novas_colunas= QgsField(Nome_campo, campos_2.type(), campos_2.typeName(), campos_2.length(), campos_2.precision(), campos_2.comment())
+            colunas.append(novas_colunas)
+        
+        (sink, dest_id) = self.parameterAsSink(
+            parameters,
+            self.OUTPUT,
+            context,
+            colunas,
+            QgsWkbTypes.Point,
+            source.sourceCrs()
+        )
         
         for feature in source.getFeatures():
             geom = feature.geometry()
@@ -151,74 +160,31 @@ class Pseudo_node(QgsProcessingAlgorithm):
            #Extrair os vertices 0 e -1
             for line in lines:
                 if len(line) > 1:
-                    for i in [0,-1]:
-                        point = QgsPointXY(line[i])
-                        vertex_counts[point] += 1
-                        vertex_features[point].append((feature))
+                    
+                    vert_inicio = QgsPointXY(line[0])
+                    vert_final=QgsPointXY(line[-1])
+                    
+                    vertex_counts[vert_inicio] += 1
+                    vertex_counts[vert_final] += 1
+                    
+                    vertex_features[vert_inicio].append(feature)
+                    vertex_features[vert_final].append(feature)
+                    
+        #feedback.pushInfo(vertex_features)
         # Segundo loop: Criar feições apenas para os vértices repetidos
-        features_to_add = []
-        conte=0
+        
+
         for point, count in vertex_counts.items():
-            if count == 2:  
-                for feature in vertex_features[point]:
-                    new_feat = QgsFeature(duplicate_layer.fields())
-                    new_feat.setGeometry(QgsGeometry.fromPointXY(point))
-                    attr = feature.attributes()
-                    attr.append(str(conte))
-                    new_feat.setAttributes(attr)                    
-                    features_to_add.append(new_feat)
-                    conte+=1
+            if count == 2: 
+                feature1 = vertex_features[point][0]
+                feature2 = vertex_features[point][1]
+                combinado = feature1.attributes() + feature2.attributes()    
+                new_feat = QgsFeature(colunas)
+                new_feat.setGeometry(QgsGeometry.fromPointXY(point))
+                new_feat.setAttributes(combinado)
+                sink.addFeature(new_feat, QgsFeatureSink.FastInsert)
+                     
                     
-                    
-        #QgsProject.instance().addMapLayer(duplicate_layer)        
-        # Adiciona os pontos duplicados à camada
-        provider.addFeatures(features_to_add)
-        duplicate_layer.updateExtents()
-               
-        CAMADA_0 = QgsVectorLayer(f"Point()?crs={crs.authid()}", 'Camada_Gerada0', 'memory')
-        CAMADA_EDICA_0 = CAMADA_0.dataProvider()
-            
-        a=processing.run("qgis:joinattributesbylocation",
-        {'INPUT':duplicate_layer,
-        'JOIN':duplicate_layer,
-        'PREDICATE':[0],
-        'METHOD':0,
-        'PREFIX':'_2',
-        'OUTPUT':'memory:'})
-                
-        CAMADA_EDICA_0.addAttributes(a['OUTPUT'].fields())
-            
-            
-        CAMADA_0.updateFields()
-            
-            
-        for Limpo in a['OUTPUT'].getFeatures():
-            geo=Limpo.geometry()
-            if Limpo['IDIDID']!=Limpo['_2IDIDID']:
-                nova=QgsFeature()
-                nova.setGeometry(geo)
-                nova.setAttributes(Limpo.attributes())
-                CAMADA_EDICA_0.addFeature(nova)
-                    
-        duplicados_Final=processing.run("native:deleteduplicategeometries", {'INPUT':CAMADA_0,
-        'OUTPUT':'memory:'})
-        
-
-        #QgsProject.instance().addMapLayer(duplicate_layer)
-        
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, duplicados_Final['OUTPUT'].fields(), duplicados_Final['OUTPUT'].wkbType(), duplicados_Final['OUTPUT'].sourceCrs())
-        
-        #(sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, duplicate_layer.fields(), duplicate_layer.wkbType(), duplicate_layer.sourceCrs())
-
-            
-        for feature in duplicados_Final['OUTPUT'].getFeatures():
-            geom = feature.geometry()
-            new_feature = QgsFeature()
-            new_feature.setGeometry(geom)
-            new_feature.setAttributes(feature.attributes())
-            sink.addFeature(new_feature)
-            
-        
 
         return{'OUTPUT':dest_id}       
 
