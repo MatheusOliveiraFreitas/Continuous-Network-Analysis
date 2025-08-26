@@ -144,66 +144,35 @@ class Pseudo_node_Analysis(QgsProcessingAlgorithm):
 
 
         # Adiciona um campo ID da feição original
- 
-     
-        vertex_counts = defaultdict(int)  # Dicionário para contar ocorrências dos vértices
-        vertex_features = defaultdict(list)  # Armazena feições para os vértices duplicados
-        source = self.parameterAsSource(parameters, self.INPUT, context)
-
-        crs = source.sourceCrs()
-        
-        duplicate_layer = QgsVectorLayer(f"Point?crs=EPSG:{crs.authid()}", "Vértices Duplicados", "memory")       
-        provider =duplicate_layer.dataProvider()
-        
-        source_fields = source.fields()
-        provider.addAttributes(source_fields.toList())
-        provider.addAttributes([QgsField("IDIDID", QVariant.String)])
-        duplicate_layer.updateFields()
-        
-        for feature in source.getFeatures():
-            geom = feature.geometry()
-            if geom.isMultipart():
-                lines = geom.asMultiPolyline()
+        try:
+            pseu=processing.run("Continuous_Network_Analysis:Pseudo-node",
+            {'INPUT':parameters['INPUT'],
+            'OUTPUT':'TEMPORARY_OUTPUT'},
+            context=context, feedback=feedback, is_child_algorithm=True)            
+            pseu_ofici=QgsProcessingUtils.mapLayerFromString(pseu['OUTPUT'], context)  
+            prove=pseu_ofici.dataProvider()
+            
+            index_status = prove.hasSpatialIndex()            
+            if index_status== 1:
+                #feedback.pushInfo('Sem indice espacial')
+                processing.run("native:createspatialindex", 
+                {'INPUT': pseu_ofici}, 
+                context=context, feedback=feedback, is_child_algorithm=True)
+              
+        except Exception as erro:
+            if feedback.isCanceled():
+                return {}
             else:
-                lines = [geom.asPolyline()]
-
- 
-           
-            for line in lines:
-                if len(line) > 1:
-                    for i in [0,-1]:
-                        point = QgsPointXY(line[i])
-                        vertex_counts[point] += 1
-                        vertex_features[point].append((feature))
-        # Segundo loop: Criar feições apenas para os vértices repetidos
-        features_to_add = []
-        conte=0
-        for point, count in vertex_counts.items():
-            if count == 2:  
-                for feature in vertex_features[point]:
-                    new_feat = QgsFeature(duplicate_layer.fields())
-                    new_feat.setGeometry(QgsGeometry.fromPointXY(point))
-                    attr = feature.attributes()
-                    attr.append(str(conte))
-                    new_feat.setAttributes(attr)
-                    features_to_add.append(new_feat)
-                    conte+=1
-                    
-        # Adiciona os pontos duplicados à camada
-        provider.addFeatures(features_to_add)
-        duplicate_layer.updateExtents()
+                raise erro
         
         #QgsProject.instance().addMapLayer(duplicate_layer)
         selected_indices = self.parameterAsEnums(parameters, self.LAYERS, context)
-        selected_layer_names = [self.parameterDefinition(self.LAYERS).options()[i] for i in selected_indices]
+        selected_layer_names = [self.parameterDefinition(self.LAYERS).options()[i] for i in selected_indices]                 
+        layers = [layer for layer in QgsProject.instance().mapLayers().values() if layer.name() in selected_layer_names]
         
         #feedback.pushInfo(f'Selected Layer: {selected_layer_name}')
-        
+        crs = source.sourceCrs()
         output_layer = QgsVectorLayer(f'Point?crs=EPSG:{crs.authid()}', 'Vertice_das_camadas_selecionadas', 'memory')
-        provider_output_layer = output_layer.dataProvider()
-        
-        layers = [layer for layer in QgsProject.instance().mapLayers().values() if layer.name() in selected_layer_names]
-         
         output_layer.startEditing()
         provider_output_layer = output_layer.dataProvider()
          
@@ -213,186 +182,156 @@ class Pseudo_node_Analysis(QgsProcessingAlgorithm):
         provider_output_layer.addAttributes([QgsField("Layer_Name", QVariant.String, len=100)])
         output_layer.updateFields()
         field_index = provider_output_layer.fields().lookupField("Layer_Name")  # Atualiza o índice do campo
-        
-
-        
-
-        
-        for layer in layers:
-            Tip_lay=self.TIPO(layer)
-            
-            
-            if Tip_lay in['Point','MultiPoint']:
-            
-                for Camada_ponto in layer.getFeatures():
+        try:
+            for layer in layers:
+                Tip_lay=self.TIPO(layer)
                 
-                    GE=Camada_ponto.geometry()
-                    nova_feature = QgsFeature(output_layer.fields())
-                    nova_feature.setGeometry(GE)
-                    attributes = Camada_ponto.attributes()
-                    while len(attributes) <= field_index:  # Evita erro de índice
-                        attributes.append(None)
-                    attributes[field_index] = layer.name()
-                 
-                    nova_feature.setAttributes(attributes)
-                    provider_output_layer.addFeature(nova_feature)
+                
+                if Tip_lay in['Point','MultiPoint']:
+                
+                    for Camada_ponto in layer.getFeatures():
                     
-                    
+                        GE=Camada_ponto.geometry()
+                        nova_feature = QgsFeature(output_layer.fields())
+                        nova_feature.setGeometry(GE)
+                        attributes = Camada_ponto.attributes()
+                        while len(attributes) <= field_index:  # Evita erro de índice
+                            attributes.append(None)
+                        attributes[field_index] = layer.name()
+                     
+                        nova_feature.setAttributes(attributes)
+                        provider_output_layer.addFeature(nova_feature)
+                        
+                        
 
-            elif Tip_lay in ['Polygon','MultiPolygon']:
-                    
-                for Camada in layer.getFeatures():
-                    a=Camada.geometry()
-                             
-                    if a.isMultipart():
-                        geometria_1=Camada.geometry()
-                        geometria_1.asMultiPolygon()
-                        polygons = geometria_1.asMultiPolygon()
-                        for polygon in polygons:
-                            
-                            for ring in polygon:
-                                for ring_2 in ring:
+                elif Tip_lay in ['Polygon','MultiPolygon']:
+                        
+                    for Camada in layer.getFeatures():
+                        a=Camada.geometry()
+                                 
+                        if a.isMultipart():
+                            geometria_1=Camada.geometry()
+                            geometria_1.asMultiPolygon()
+                            polygons = geometria_1.asMultiPolygon()
+                            for polygon in polygons:
+                                
+                                for ring in polygon:
+                                    for ring_2 in ring:
+                                        nova=QgsFeature(output_layer.fields())
+                                        geometra=QgsGeometry.fromPointXY(ring_2)
+                                        nova.setGeometry(geometra)
+                                        attributes = Camada.attributes()
+                                        
+                                        while len(attributes) <= field_index:  # Evita erro de índice
+                                            attributes.append(None)
+                                        attributes[field_index] = layer.name()
+                     
+                                        nova.setAttributes(attributes)
+                                        provider_output_layer.addFeature(nova)
+                                        
+                                        
+                        else:
+                            geometria_2=Camada.geometry()
+                            polygons_2=geometria_2.asPolygon()
+                            for polygon_2 in polygons_2:
+                                for ring_1 in polygon_2:
+                                        nova=QgsFeature(output_layer.fields())
+                                        geometra_2=QgsGeometry.fromPointXY(ring_1)
+                                        nova.setGeometry(geometra_2)
+                                        attributes = Camada.attributes()
+                                        while len(attributes) <= field_index:  # Evita erro de índice
+                                            attributes.append(None)
+                                        attributes[field_index] = layer.name()
+                     
+                                        nova.setAttributes(attributes)
+                                        provider_output_layer.addFeature(nova)
+                                        
+                                   
+                   
+                else:
+                    for feicao in layer.getFeatures():
+                        geo=feicao.geometry()
+                        
+                        if geo.isMultipart():
+                            geome=geo.asMultiPolyline()    
+                            for feicao_2 in geome:
+                                for feicao_3 in feicao_2:
+
                                     nova=QgsFeature(output_layer.fields())
-                                    geometra=QgsGeometry.fromPointXY(ring_2)
+                                    geometra=QgsGeometry.fromPointXY(feicao_3)
                                     nova.setGeometry(geometra)
-                                    attributes = Camada.attributes()
-                                    
+                                    attributes = feicao.attributes()
                                     while len(attributes) <= field_index:  # Evita erro de índice
                                         attributes.append(None)
                                     attributes[field_index] = layer.name()
-                 
+                         
                                     nova.setAttributes(attributes)
                                     provider_output_layer.addFeature(nova)
                                     
-                                    
-                    else:
-                        geometria_2=Camada.geometry()
-                        polygons_2=geometria_2.asPolygon()
-                        for polygon_2 in polygons_2:
-                            for ring_1 in polygon_2:
-                                    nova=QgsFeature(output_layer.fields())
-                                    geometra_2=QgsGeometry.fromPointXY(ring_1)
-                                    nova.setGeometry(geometra_2)
-                                    attributes = Camada.attributes()
-                                    while len(attributes) <= field_index:  # Evita erro de índice
-                                        attributes.append(None)
-                                    attributes[field_index] = layer.name()
-                 
-                                    nova.setAttributes(attributes)
-                                    provider_output_layer.addFeature(nova)
-                                    
-                               
-               
-            else:
-                for feicao in layer.getFeatures():
-                    geo=feicao.geometry()
-                    
-                    if geo.isMultipart():
-                        geome=geo.asMultiPolyline()    
-                        for feicao_2 in geome:
-                            for feicao_3 in feicao_2:
-
-                                nova=QgsFeature(output_layer.fields())
-                                geometra=QgsGeometry.fromPointXY(feicao_3)
+                        else:
+                            geome=geo.asPolyline()    
+                            for feicao_4 in geome:        
+                                nova=QgsFeature()
+                                
+                                geometra=QgsGeometry.fromPointXY(feicao_4)
                                 nova.setGeometry(geometra)
                                 attributes = feicao.attributes()
                                 while len(attributes) <= field_index:  # Evita erro de índice
                                     attributes.append(None)
                                 attributes[field_index] = layer.name()
-                     
+                         
                                 nova.setAttributes(attributes)
                                 provider_output_layer.addFeature(nova)
-                                
-                    else:
-                        geome=geo.asPolyline()    
-                        for feicao_4 in geome:        
-                            nova=QgsFeature()
-                            
-                            geometra=QgsGeometry.fromPointXY(feicao_4)
-                            nova.setGeometry(geometra)
-                            attributes = feicao.attributes()
-                            while len(attributes) <= field_index:  # Evita erro de índice
-                                attributes.append(None)
-                            attributes[field_index] = layer.name()
-                     
-                            nova.setAttributes(attributes)
-                            provider_output_layer.addFeature(nova)
-                            
+        except Exception as erro:
+            if feedback.isCanceled():
+                return {}
+            else:
+                raise erro                            
                         
         output_layer.commitChanges()
-        #QgsProject.instance().addMapLayer(output_layer)
-        # Adiciona a camada de saída ao projeto
-        #QgsProject.instance().addMapLayer(duplicate_layer)
-        crs = source.sourceCrs()
-
-        # Criar a camada de saída
-        CAMADA_0 = QgsVectorLayer(f"Point()?crs={crs.authid()}", 'Camada_Gerada0', 'memory')
-        CAMADA_EDICA_0 = CAMADA_0.dataProvider()
-            
-        a=processing.run("qgis:joinattributesbylocation",
-        {'INPUT':duplicate_layer,
-        'JOIN':duplicate_layer,
-        'PREDICATE':[0],
-        'METHOD':0,
-        'PREFIX':'_2',
-        'OUTPUT':'memory:'})
-                
-        CAMADA_EDICA_0.addAttributes(a['OUTPUT'].fields())
-            
-            
-        CAMADA_0.updateFields()
-            
-            
-        for Limpo in a['OUTPUT'].getFeatures():
-            geo=Limpo.geometry()
-            if Limpo['IDIDID']!=Limpo['_2IDIDID']:
-                nova=QgsFeature()
-                nova.setGeometry(geo)
-                nova.setAttributes(Limpo.attributes())
-                CAMADA_EDICA_0.addFeature(nova)
-                    
-        duplicados_Final=processing.run("native:deleteduplicategeometries", {'INPUT':CAMADA_0,
-        'OUTPUT':'memory:'})
-            
-
-            
-        dan=processing.run("native:extractbylocation",
-        {'INPUT':duplicados_Final['OUTPUT'],
-        'INTERSECT':output_layer,
-        'PREDICATE':[2],
-        'OUTPUT':'memory:'})
-
-      
-        
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, dan['OUTPUT'].fields(), dan['OUTPUT'].wkbType(), dan['OUTPUT'].sourceCrs())
-        
-        #(sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, duplicate_layer.fields(), duplicate_layer.wkbType(), duplicate_layer.sourceCrs())
-
-            
-        for feature in dan['OUTPUT'].getFeatures():
-            geom = feature.geometry()
-            new_feature = QgsFeature()
-            new_feature.setGeometry(geom)
-            new_feature.setAttributes(feature.attributes())
-            sink.addFeature(new_feature)
-            
-            dan_2=processing.run("native:extractbylocation",
-            {'INPUT':duplicados_Final['OUTPUT'],
+        try:
+            dan=processing.run("native:extractbylocation",
+            {'INPUT':pseu_ofici,
             'INTERSECT':output_layer,
-            'PREDICATE':[0],
-            'OUTPUT':'memory:'})
+            'PREDICATE':[2],
+            'OUTPUT':'memory:'},
+            context=context, feedback=feedback, is_child_algorithm=True)            
+            nao_pseu_ofici=QgsProcessingUtils.mapLayerFromString(dan['OUTPUT'], context)
+
+          
             
-
-
-
-        (sink2, dest_id2) = self.parameterAsSink(parameters, self.OUTPUT2, context, dan_2['OUTPUT'].fields(), dan['OUTPUT'].wkbType(), dan_2['OUTPUT'].sourceCrs())    
-        for feature in dan_2['OUTPUT'].getFeatures():
-            geom_2 = feature.geometry()
-            nova_Feicao = QgsFeature()
-            nova_Feicao.setGeometry(geom_2)
-            nova_Feicao.setAttributes(feature.attributes())
-            sink2.addFeature(nova_Feicao)
+            (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, nao_pseu_ofici.fields(), nao_pseu_ofici.wkbType(), nao_pseu_ofici.sourceCrs())
             
+            #(sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, duplicate_layer.fields(), duplicate_layer.wkbType(), duplicate_layer.sourceCrs())
+
+                
+            for feature in nao_pseu_ofici.getFeatures():
+                sink.addFeature(feature, QgsFeatureSink.FastInsert)
+        except Exception as erro:
+            if feedback.isCanceled():
+                return {}
+            else:
+                raise erro 
+        try:            
+            dan_2=processing.run("native:intersection", {
+            'INPUT': pseu_ofici,
+            'OVERLAY': output_layer,
+            'INPUT_FIELDS': [], # Selecione aqui os campos do dangle que quer manter
+            'OVERLAY_FIELDS': [], # Selecione os campos da camada de sobreposição que quer adicionar
+            'OUTPUT': 'TEMPORARY_OUTPUT'},
+             context=context, feedback=feedback, is_child_algorithm=True)            
+            pseu_ofici_final=QgsProcessingUtils.mapLayerFromString(dan_2['OUTPUT'], context)
+
+
+
+            (sink2, dest_id2) = self.parameterAsSink(parameters, self.OUTPUT2, context, pseu_ofici_final.fields(), pseu_ofici_final.wkbType(), pseu_ofici_final.sourceCrs())
+            for feature in pseu_ofici_final.getFeatures():
+                sink2.addFeature(feature, QgsFeatureSink.FastInsert)
+        except Exception as erro:
+            if feedback.isCanceled():
+                return {}
+            else:
+                raise erro             
         
         return{'OUTPUT':dest_id,'OUTPUT2':dest_id2}       
 
