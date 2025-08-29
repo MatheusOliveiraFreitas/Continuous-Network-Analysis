@@ -24,7 +24,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterField)
 from qgis import processing
 from qgis.core import QgsProject
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsWkbTypes,QgsFeatureRequest,QgsVectorLayer, QgsVectorFileWriter,QgsFeature
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsWkbTypes,QgsFeatureRequest,QgsVectorLayer, QgsVectorFileWriter,QgsFeature,QgsProcessingUtils
 
 class ConectividadeAlgorithm(QgsProcessingAlgorithm):
     """
@@ -118,6 +118,8 @@ class ConectividadeAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 #######
 
+        if feedback.isCanceled():
+            return {}  
 
         calcu=processing.run("native:fieldcalculator", {'INPUT':parameters['INPUT'],
         'FIELD_NAME':'id_70',
@@ -125,68 +127,78 @@ class ConectividadeAlgorithm(QgsProcessingAlgorithm):
         'FIELD_LENGTH':0,
         'FIELD_PRECISION':0,
         'FORMULA':'@id',
-        'OUTPUT':'memory:'})
-
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True)        
+        calcu_ofici=QgsProcessingUtils.mapLayerFromString(calcu['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {} 
+        linha=processing.run("native:extractvertices", {'INPUT':calcu_ofici,
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True)      
+        linha_ofic=QgsProcessingUtils.mapLayerFromString(linha['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {} 
         
-        linha=processing.run("native:extractvertices", {'INPUT':calcu['OUTPUT'],
-        'OUTPUT':'memory:'})
-        
-
-        
-        disso=processing.run("native:dissolve", {'INPUT':linha['OUTPUT'],
+        disso=processing.run("native:dissolve", {'INPUT':linha_ofic,
         'FIELD':['id_70'],
         'SEPARATE_DISJOINT':False,
-        'OUTPUT':'memory:'})
-        
-        
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        disso_ofic=QgsProcessingUtils.mapLayerFromString(disso['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}         
         #QgsProject.instance().addMapLayer(linha['OUTPUT'])
         
-        processing.run("native:selectbylocation", {'INPUT':disso['OUTPUT'],
+        processing.run("native:selectbylocation", {'INPUT':disso_ofic,
         'PREDICATE':[0],
         'INTERSECT':parameters['INPUT_2'],
-        'METHOD':0})
+        'METHOD':0},context=context, feedback=feedback, is_child_algorithm=True) 
+        if feedback.isCanceled():
+            return {}             
             
-            
-        disso['OUTPUT'].setName('BBBBBBBBBBBBBBBBBBBBBBBBBB')    
-        QgsProject.instance().addMapLayer(disso['OUTPUT'])        
+        disso_ofic.setName('BBBBBBBBBBBBBBBBBBBBBBBBBB')    
+        QgsProject.instance().addMapLayer(disso_ofic)        
         
         while True:
-            num_selected_features_1 = disso['OUTPUT'].selectedFeatureCount()
+            if feedback.isCanceled():
+                return {} 
+            num_selected_features_1 = disso_ofic.selectedFeatureCount()
             
-            processing.run("qgis:selectbylocation", {'INPUT' : disso['OUTPUT'],
+            processing.run("qgis:selectbylocation", {'INPUT' : disso_ofic,
             'INTERSECT' :  QgsProcessingFeatureSourceDefinition('BBBBBBBBBBBBBBBBBBBBBBBBBB',
             selectedFeaturesOnly=True, featureLimit=-1, geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid),
             'METHOD' : 0,
             'PREDICATE' : [0],
             'OUTPUT': 'memory:'})
             
-            num_selected_features = disso['OUTPUT'].selectedFeatureCount()
+            num_selected_features = disso_ofic.selectedFeatureCount()
             if num_selected_features_1==num_selected_features:
-                c=processing.run("native:saveselectedfeatures", {'INPUT':disso['OUTPUT'],                
-                'OUTPUT':'memory:'})
+                c=processing.run("native:saveselectedfeatures", {'INPUT':disso_ofic,                
+                'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True)
+                c_ofic=QgsProcessingUtils.mapLayerFromString(c['OUTPUT'], context)
                 #QgsProject.instance().addMapLayer(c['OUTPUT'])
                 break
                 
         deletar=QgsProject.instance().mapLayersByName('BBBBBBBBBBBBBBBBBBBBBBBBBB')    
         QgsProject.instance().removeMapLayer(deletar[0])
         demi=processing.run("native:extractbylocation",
-        {'INPUT':disso['OUTPUT'],
-        'INTERSECT':c['OUTPUT'],
+        {'INPUT':disso_ofic,
+        'INTERSECT':c_ofic,
         'PREDICATE':[2],
-        'OUTPUT':'memory:'})
-        
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        demi_ofic=QgsProcessingUtils.mapLayerFromString(demi['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {} 
         
         desco=processing.run("native:extractbylocation",
         {'INPUT':parameters['INPUT'],
-        'INTERSECT':demi['OUTPUT'],
+        'INTERSECT':demi_ofic,
         'PREDICATE':[0],
-        'OUTPUT':'memory:'})
-        
-        
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, desco['OUTPUT'].fields(), desco['OUTPUT'].wkbType(), desco['OUTPUT'].sourceCrs())
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        desco_ofic=QgsProcessingUtils.mapLayerFromString(desco['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}         
+        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, desco_ofic.fields(), desco_ofic.wkbType(), desco_ofic.sourceCrs())
 
             
-        for feature in desco['OUTPUT'].getFeatures():
+        for feature in desco_ofic.getFeatures():
             geometria = feature.geometry()
             Feicao = QgsFeature()
             Feicao.setGeometry(geometria)
@@ -195,22 +207,25 @@ class ConectividadeAlgorithm(QgsProcessingAlgorithm):
 
             
         demi_cone=processing.run("native:extractbylocation",
-        {'INPUT':disso['OUTPUT'],
-        'INTERSECT':c['OUTPUT'],
+        {'INPUT':disso_ofic,
+        'INTERSECT':c_ofic,
         'PREDICATE':[0],
-        'OUTPUT':'memory:'})
-        
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        demi_cone_ofic=QgsProcessingUtils.mapLayerFromString(demi_cone['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}                 
 
         
         desco_coe=processing.run("native:extractbylocation",
         {'INPUT':parameters['INPUT'],
-        'INTERSECT':demi_cone['OUTPUT'],
+        'INTERSECT':demi_cone_ofic,
         'PREDICATE':[0],
-        'OUTPUT':'memory:'})  
-        
-        
-        (sink2, dest_id2) = self.parameterAsSink(parameters, self.OUTPUT2, context, desco_coe['OUTPUT'].fields(), desco_coe['OUTPUT'].wkbType(), desco_coe['OUTPUT'].sourceCrs())
-        for feature in desco_coe['OUTPUT'].getFeatures():
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True)  
+        desco_coe_ofic=QgsProcessingUtils.mapLayerFromString(desco_coe['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}         
+        (sink2, dest_id2) = self.parameterAsSink(parameters, self.OUTPUT2, context, desco_coe_ofic.fields(), desco_coe_ofic.wkbType(), desco_coe_ofic.sourceCrs())
+        for feature in desco_coe_ofic.getFeatures():
             geom_2 = feature.geometry()
             nova_Feicao = QgsFeature()
             nova_Feicao.setGeometry(geom_2)
