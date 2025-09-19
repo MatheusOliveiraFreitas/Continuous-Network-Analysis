@@ -149,8 +149,11 @@ class NascentesAlgorithm(QgsProcessingAlgorithm):
         disso=processing.run("native:dissolve", {'INPUT':parameters['INPUT'],
         'FIELD':[],
         'SEPARATE_DISJOINT':False,
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
         
+        disso_ofic=QgsProcessingUtils.mapLayerFromString(disso['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {} 
         duplicate_layer = QgsVectorLayer("Point?crs=EPSG:4326", "Vértices Duplicados", "memory")
         provider = duplicate_layer.dataProvider()
         
@@ -197,10 +200,12 @@ class NascentesAlgorithm(QgsProcessingAlgorithm):
 
 
         #quebra os dissolvidos com as interssecao que nao sao duas interssecao
-        quebra=processing.run("native:splitwithlines", {'INPUT':disso['OUTPUT'],
+        quebra=processing.run("native:splitwithlines", {'INPUT':disso_ofic,
         'LINES':duplicate_layer,
-        'OUTPUT':'memory:'})
-       
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        quebra_ofic=QgsProcessingUtils.mapLayerFromString(quebra['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}        
         '''PARTE 2 do PROGRAMA // extrair as nascente depois extrair conforme os parametros'''
 
 
@@ -208,8 +213,10 @@ class NascentesAlgorithm(QgsProcessingAlgorithm):
         
         #Achar os vertices que sao nascentes, extrair por localizaca (desunidos),  pela os mescla depois e se tem sobreposicao quer dizer que nao é nascente
         nasc=processing.run("Continuous_Network_Analysis:Identify Dangles", {'INPUT':parameters['INPUT'],
-        'OUTPUT':'memory:'})
-        
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        nasc_ofic=QgsProcessingUtils.mapLayerFromString(nasc['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}           
 
         
         
@@ -222,10 +229,13 @@ class NascentesAlgorithm(QgsProcessingAlgorithm):
         #Por enquanto esta tudo como ponto, então queremos extrair os trechos das nascentes;
         #para isso ultilizando extrair por localização (interseçao)
         trech_nasc=processing.run("native:extractbylocation",
-        {'INPUT':quebra['OUTPUT'],
-        'INTERSECT':nasc['OUTPUT'],
+        {'INPUT':quebra_ofic,
+        'INTERSECT':nasc_ofic,
         'PREDICATE':[0],
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        trech_nasc_ofic=QgsProcessingUtils.mapLayerFromString(trech_nasc['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}           
         
         #QgsProject.instance().addMapLayer(trech_nasc['OUTPUT'])
         
@@ -235,25 +245,30 @@ class NascentesAlgorithm(QgsProcessingAlgorithm):
         
         #Aqui ele vai deletar as colunas do dissolvidos
 
-        fields = trech_nasc['OUTPUT'].fields()
+        fields = trech_nasc_ofic.fields()
         field_names = [field.name() for field in fields]  # Lista os nomes das colunas
         
      
         
-        deleta_C=processing.run("native:deletecolumn", {'INPUT':trech_nasc['OUTPUT'],
+        deleta_C=processing.run("native:deletecolumn", {'INPUT':trech_nasc_ofic,
         'COLUMN':field_names,
-        'OUTPUT':'memory:'})
-        
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        deleta_C_ofic=QgsProcessingUtils.mapLayerFromString(deleta_C['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}        
         #Cria uma coluna com nos trechos de nascente e coloca a expressao $length (comprimento)
         
-        calcu=processing.run("native:fieldcalculator", {'INPUT':trech_nasc['OUTPUT'],
+        calcu=processing.run("native:fieldcalculator", {'INPUT':trech_nasc_ofic,
         'FIELD_NAME':'Compri',
         'FIELD_TYPE':0,
         'FIELD_LENGTH':0,
         'FIELD_PRECISION':0,
         'FORMULA':' $length ',
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
         
+        calcu_ofic=QgsProcessingUtils.mapLayerFromString(calcu['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}           
         nume=parameters['VALUE'] 
         
 
@@ -279,12 +294,17 @@ class NascentesAlgorithm(QgsProcessingAlgorithm):
 
         #como a coluna feita faz uma extracao por expressao com os parametos ditos la em cima
         c=processing.run("native:extractbyattribute", 
-        {'INPUT': calcu['OUTPUT'],
+        {'INPUT': calcu_ofic,
         'FIELD':'Compri',
         'OPERATOR':LAD,
         'VALUE':nume,
-        'OUTPUT':'memory:'})
-        #QgsProject.instance().addMapLayer(c['OUTPUT'])        
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        #QgsProject.instance().addMapLayer(c['OUTPUT'])  
+        
+        c_ofic=QgsProcessingUtils.mapLayerFromString(c['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}      
+            
         
         #Cria um buff da foz/limite da folha esse buff é para 
         buff=processing.run("native:buffer",
@@ -293,20 +313,26 @@ class NascentesAlgorithm(QgsProcessingAlgorithm):
         'DISSOLVE': False,
         'END_CAP_STYLE': 0,
         'JOIN_STYLE':0,
-        'OUTPUT': 'memory:'})
+        'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
         #output2 = self.parameterAsOutputLayer(parameters, self.OUTPUT2, context)        
         #output = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
         
+        buff_ofic=QgsProcessingUtils.mapLayerFromString(buff['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}          
+            
         #o codigo vai identifica a foz como uma nascente entao vou descarta a "nascentes" incorretas e por isso vou ultilizar o extrair por localizacao(desunido)
         nasc_sem_F=processing.run("native:extractbylocation",
-        {'INPUT':c['OUTPUT'],
-        'INTERSECT':buff['OUTPUT'],
+        {'INPUT':c_ofic,
+        'INTERSECT':buff_ofic,
         'PREDICATE':[2],
-        'OUTPUT': 'memory:'})
-               #QgsProject.instance().addMapLayer(nasc_sem_F['OUTPUT'])
-
-        provider = nasc_sem_F['OUTPUT'].dataProvider()
-        fields = nasc_sem_F['OUTPUT'].fields()
+        'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        #QgsProject.instance().addMapLayer(nasc_sem_F['OUTPUT'])
+        nasc_sem_F_ofic=QgsProcessingUtils.mapLayerFromString(nasc_sem_F['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {} 
+        provider = nasc_sem_F_ofic.dataProvider()
+        fields = nasc_sem_F_ofic.fields()
             
         # Nome da única coluna que deseja manter
         coluna_a_manter = 'Compri'
@@ -318,13 +344,13 @@ class NascentesAlgorithm(QgsProcessingAlgorithm):
         provider.deleteAttributes([fields.indexFromName(col) for col in colunas_para_remover])
             
         # Atualiza a camada
-        nasc_sem_F['OUTPUT'].updateFields() 
+        nasc_sem_F_ofic.updateFields() 
         
 
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, nasc_sem_F['OUTPUT'].fields(), nasc_sem_F['OUTPUT'].wkbType(), nasc_sem_F['OUTPUT'].sourceCrs())
+        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, nasc_sem_F_ofic.fields(), nasc_sem_F_ofic.wkbType(), nasc_sem_F_ofic.sourceCrs())
 
             
-        for feature in nasc_sem_F['OUTPUT'].getFeatures():
+        for feature in nasc_sem_F_ofic.getFeatures():
             geom = feature.geometry()
             new_feature = QgsFeature()
             new_feature.setGeometry(geom)
@@ -335,39 +361,51 @@ class NascentesAlgorithm(QgsProcessingAlgorithm):
                 
         po=processing.run("native:extractbylocation",
         {'INPUT':nasc['OUTPUT'],
-        'INTERSECT':buff['OUTPUT'],
+        'INTERSECT':buff_ofic,
         'PREDICATE':[2],
-        'OUTPUT': 'memory:'})
-        
-        fields_2 = po['OUTPUT'].fields()
+        'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        po_ofic=QgsProcessingUtils.mapLayerFromString(po['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}        
+        fields_2 = po_ofic.fields()
         field_names_2 = [field.name() for field in fields_2]  # Lista os nomes das colunas 
         
-        deleta_Pont=processing.run("native:deletecolumn", {'INPUT':po['OUTPUT'],
+        deleta_Pont=processing.run("native:deletecolumn", {'INPUT':po_ofic,
         'COLUMN':field_names_2,
-        'OUTPUT':'memory:'})
-        
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        deleta_Pont_ofic=QgsProcessingUtils.mapLayerFromString(deleta_Pont['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}        
+        fields_2 = po_ofic.fields()        
         #QgsProject.instance().addMapLayer(deleta_Pont['OUTPUT'])
-        nas_Pon=processing.run("native:intersection", {'INPUT':deleta_Pont['OUTPUT'],
+        
+        nas_Pon=processing.run("native:intersection", {'INPUT':deleta_Pont_ofic,
         'OVERLAY':parameters['INPUT'],
         'INPUT_FIELDS':[],
         'OVERLAY_FIELDS':[],
         'OVERLAY_FIELDS_PREFIX':'',
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        
+        nas_Pon_ofic=QgsProcessingUtils.mapLayerFromString(nas_Pon['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}        
         #QgsProject.instance().addMapLayer(nas_Pon['OUTPUT'])
         
-        nasc_Pont_2=processing.run("native:intersection", {'INPUT':nas_Pon['OUTPUT'],
-        'OVERLAY':nasc_sem_F['OUTPUT'],
+        nasc_Pont_2=processing.run("native:intersection", {'INPUT':nas_Pon_ofic,
+        'OVERLAY':nasc_sem_F_ofic,
         'INPUT_FIELDS':[],
         'OVERLAY_FIELDS':[],
         'OVERLAY_FIELDS_PREFIX':'',
-        'OUTPUT':'memory:'})
-        
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        nasc_Pont_2_ofic=QgsProcessingUtils.mapLayerFromString(nasc_Pont_2['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}         
         #QgsProject.instance().addMapLayer(nasc_sem_F['OUTPUT'])
         
-        (sink, dest_id_2) = self.parameterAsSink(parameters, self.OUTPUT2, context, nasc_Pont_2['OUTPUT'].fields(), nasc_Pont_2['OUTPUT'].wkbType(), nasc_Pont_2['OUTPUT'].sourceCrs())
+        (sink, dest_id_2) = self.parameterAsSink(parameters, self.OUTPUT2, context, nasc_Pont_2_ofic.fields(), nasc_Pont_2_ofic.wkbType(), nasc_Pont_2_ofic.sourceCrs())
 
             
-        for feature in nasc_Pont_2['OUTPUT'].getFeatures():
+        for feature in nasc_Pont_2_ofic.getFeatures():
             Feicao = feature.geometry()
             Nova_Feicao = QgsFeature()
             Nova_Feicao.setGeometry(Feicao)
