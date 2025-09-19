@@ -223,7 +223,8 @@ class ConectividadeAlgorithm(QgsProcessingAlgorithm):
         'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True)  
         desco_coe_ofic=QgsProcessingUtils.mapLayerFromString(desco_coe['OUTPUT'], context)
         if feedback.isCanceled():
-            return {}         
+            return {}  
+            
         (sink2, dest_id2) = self.parameterAsSink(parameters, self.OUTPUT2, context, desco_coe_ofic.fields(), desco_coe_ofic.wkbType(), desco_coe_ofic.sourceCrs())
         for feature in desco_coe_ofic.getFeatures():
             geom_2 = feature.geometry()
