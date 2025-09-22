@@ -32,7 +32,7 @@ Vector Network Analysis is a processing plugin for Qgis that provides several to
 -  Returns Non_Overlap Pseudo-node, Pseudo-node that is not topologically connected to any vertex of the selected layers.
 -  Returns Overlapping Pseudo-node, Pseudo-node that is topologically connected to any vertex of the selected layers, in addition to having a column that identifies which layer each vertex is topologically connected to.
 
-***"Pseudo-node Analysis"***: Connection Counter Per Vertex Calculates which vertices in a line network are connected to other vertices, and how many connections each has. Algorithm topologically calculates vertices with more than one connection (degree > 1).
+***"Vertex Connection Counter"***: Connection Counter Per Vertex Calculates which vertices in a line network are connected to other vertices, and how many connections each has. Algorithm topologically calculates vertices with more than one connection (degree > 1).
 
 -  Creates points only at vertices with more than one connection (degree > 1), with a 'Vertex' field indicating the number of connections at each point.
   
