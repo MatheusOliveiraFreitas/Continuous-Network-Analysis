@@ -43,7 +43,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterField)
 from qgis import processing
 from qgis.core import QgsProject
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsWkbTypes,QgsFeature,QgsVectorLayer
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsWkbTypes,QgsFeature,QgsVectorLayer,QgsProcessingUtils
 
 class ContinuousNetworkAnalysisAlgorithm(QgsProcessingAlgorithm):
     """
@@ -121,90 +121,125 @@ class ContinuousNetworkAnalysisAlgorithm(QgsProcessingAlgorithm):
         
         quebra=processing.run("native:splitwithlines", {'INPUT':parameters['INPUT'],
         'LINES':parameters['INPUT'],
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        quebra_ofic=QgsProcessingUtils.mapLayerFromString(quebra['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {} 
         
         nome=processing.run("native:extractbyexpression",
-        {'INPUT': quebra['OUTPUT'],
+        {'INPUT': quebra_ofic,
         'EXPRESSION':f'{a} is not null',
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        nome_ofic=QgsProcessingUtils.mapLayerFromString(nome['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         verti_0=processing.run("native:extractspecificvertices",{
-        'INPUT':nome['OUTPUT'],
+        'INPUT':nome_ofic,
         'VERTICES':0,
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        verti_0_ofic=QgsProcessingUtils.mapLayerFromString(verti_0['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
 
         #Extrair o vertice -1 da camada quebrada a parti dos dissolvidos
         verti_1=processing.run("native:extractspecificvertices",{
-        'INPUT':nome['OUTPUT'],
+        'INPUT':nome_ofic,
         'VERTICES':-1,
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        verti_1_ofic=QgsProcessingUtils.mapLayerFromString(verti_1['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
 
         #Mesclar (unir) os output dos vertices 0 e -1 
         mescla=processing.run("native:mergevectorlayers",{
-        'LAYERS':[verti_0['OUTPUT'],verti_1['OUTPUT']],
-        'OUTPUT':'memory:'})
+        'LAYERS':[verti_0_ofic,verti_1_ofic],
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        mescla_ofic=QgsProcessingUtils.mapLayerFromString(mescla['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
      
-        
-        quebra=processing.run("native:splitwithlines", {'INPUT':parameters['INPUT'],
-        'LINES':parameters['INPUT'],
-        'OUTPUT':'memory:'})
-        
-        
+
         X_Y=processing.run("native:fieldcalculator", 
-        {'INPUT':mescla['OUTPUT'],
+        {'INPUT':mescla_ofic,
         'FIELD_NAME':'cont',
         'FIELD_LENGTH':0,
         'FIELD_PRECISION':0,
         'FORMULA':'$X + $Y\r\n\r\n',
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        X_Y_ofic=QgsProcessingUtils.mapLayerFromString(X_Y['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         #ver quantas vezes se repete a soma se reperti mais que duas quer dizer que é intercessao
-        rep=processing.run("native:fieldcalculator", {'INPUT':X_Y['OUTPUT'],
+        rep=processing.run("native:fieldcalculator", {'INPUT':X_Y_ofic,
         'FIELD_NAME':'repe',
         'FIELD_TYPE':0,
         'FIELD_LENGTH':0,
         'FIELD_PRECISION':0,
         'FORMULA':'count( "cont","cont" )',
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        rep_ofic=QgsProcessingUtils.mapLayerFromString(rep['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         #Retira os simples
         remov=processing.run("native:extractbyattribute",
-        {'INPUT':rep['OUTPUT'],
+        {'INPUT':rep_ofic,
         'FIELD':'repe',
         'OPERATOR':0,
         'VALUE':'1',
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        remov_ofic=QgsProcessingUtils.mapLayerFromString(remov['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
               
         #QgsProject.instance().addMapLayer(remov['OUTPUT'])
         
         #PARTE 2 DO PROGRAMA'
         
         sem_nome=processing.run("native:extractbyexpression",
-        {'INPUT': quebra['OUTPUT'],
+        {'INPUT': quebra_ofic,
         'EXPRESSION':f'"{a}" is NULL or "{a}"  =\' \'',
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        sem_nome_ofic=QgsProcessingUtils.mapLayerFromString(sem_nome['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
 
         verti_0_sem=processing.run("native:extractspecificvertices",{
-        'INPUT':sem_nome['OUTPUT'],
+        'INPUT':sem_nome_ofic,
         'VERTICES':0,
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        verti_0_sem_ofic=QgsProcessingUtils.mapLayerFromString(verti_0_sem['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
+        
         #Extrair o vertice -1 da camada quebrada a parti dos dissolvidos
         verti_1_sem=processing.run("native:extractspecificvertices",{
-        'INPUT':sem_nome['OUTPUT'],
+        'INPUT':sem_nome_ofic,
         'VERTICES':-1,
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        verti_1_sem_ofic=QgsProcessingUtils.mapLayerFromString(verti_1_sem['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         mescla_sem=processing.run("native:mergevectorlayers",{
-        'LAYERS':[verti_0_sem['OUTPUT'],verti_1_sem['OUTPUT']],
-        'OUTPUT':'memory:'})
+        'LAYERS':[verti_0_sem_ofic,verti_1_sem_ofic],
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        mescla_sem_ofic=QgsProcessingUtils.mapLayerFromString(mescla_sem['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
             
         
         #Achar os vertices que sao nascentes, extrair por localizaca (desunidos),  pela os mescla depois e se tem sobreposicao quer dizer que nao é nascente
         nasc_sem1=processing.run("native:extractbylocation",
-        {'INPUT':mescla_sem['OUTPUT'],
-        'INTERSECT':remov['OUTPUT'],
+        {'INPUT':mescla_sem_ofic,
+        'INTERSECT':remov_ofic,
         'PREDICATE':[0],
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        nasc_sem1_ofic=QgsProcessingUtils.mapLayerFromString(nasc_sem1['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         #QgsProject.instance().addMapLayer(nasc_sem1['OUTPUT'])
         
                        
@@ -212,12 +247,18 @@ class ContinuousNetworkAnalysisAlgorithm(QgsProcessingAlgorithm):
         #output = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
         
         local=processing.run("native:extractbyexpression",
-        {'INPUT': nasc_sem1['OUTPUT'],
+        {'INPUT': nasc_sem1_ofic,
         'EXPRESSION':f'"{a}" is null',
-        'OUTPUT':'memory:'})
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        local_ofic=QgsProcessingUtils.mapLayerFromString(local['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
-        nasc_sem_Final=processing.run("native:deleteduplicategeometries", {'INPUT':local['OUTPUT'],
-        'OUTPUT':'memory:'})
+        nasc_sem_Final=processing.run("native:deleteduplicategeometries", {'INPUT':local_ofic,
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        nasc_sem_Final_ofic=QgsProcessingUtils.mapLayerFromString(nasc_sem_Final['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
             
         ExtrairPorExpresso1=processing.run('native:extractbyexpression',{
             'EXPRESSION': '"nome" is not null',
@@ -230,7 +271,10 @@ class ContinuousNetworkAnalysisAlgorithm(QgsProcessingAlgorithm):
         ExtrairVrticesEspecficos1SemNome=processing.run('native:extractspecificvertices',{
             'INPUT': ExtrairPorExpresso1['FAIL_OUTPUT'],
             'VERTICES': '-1',
-            'OUTPUT': 'memory:'})
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairVrticesEspecficos1SemNome_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairVrticesEspecficos1SemNome['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         #outputs['ExtrairVrticesEspecficos1SemNome'] = processing.run('native:extractspecificvertices', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
@@ -239,7 +283,11 @@ class ContinuousNetworkAnalysisAlgorithm(QgsProcessingAlgorithm):
         ExtrairVrticesEspecficos_sem_nome_0=processing.run('native:extractspecificvertices',{
             'INPUT': ExtrairPorExpresso1['FAIL_OUTPUT'],
             'VERTICES': '0',
-            'OUTPUT':'memory:'})
+            'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairVrticesEspecficos_sem_nome_0_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairVrticesEspecficos_sem_nome_0['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
+        
         
         #outputs['ExtrairVrticesEspecficos_sem_nome_0'] = processing.run('native:extractspecificvertices', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
@@ -249,7 +297,10 @@ class ContinuousNetworkAnalysisAlgorithm(QgsProcessingAlgorithm):
         ExtrairVrticesEspecficos_com_nome_1 =processing.run('native:extractspecificvertices',{
             'INPUT': ExtrairPorExpresso1['OUTPUT'],
             'VERTICES': '-1',
-            'OUTPUT': 'memory:'})
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairVrticesEspecficos_com_nome_1_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairVrticesEspecficos_com_nome_1['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         #outputs['ExtrairVrticesEspecficos_com_nome_1'] = processing.run('native:extractspecificvertices', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
@@ -258,7 +309,10 @@ class ContinuousNetworkAnalysisAlgorithm(QgsProcessingAlgorithm):
         ExtrairVrticesEspecficos_com_nome_0 =processing.run('native:extractspecificvertices', {
             'INPUT': ExtrairPorExpresso1['OUTPUT'],
             'VERTICES': '0',
-            'OUTPUT': 'memory:'})
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairVrticesEspecficos_com_nome_0_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairVrticesEspecficos_com_nome_0['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         #outputs['ExtrairVrticesEspecficos_com_nome_0'] = processing.run('native:extractspecificvertices', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
@@ -266,10 +320,13 @@ class ContinuousNetworkAnalysisAlgorithm(QgsProcessingAlgorithm):
 
         # Extrair por localização_Nascente
         ExtrairPorLocalizao_nascente=processing.run('native:extractbylocation', {
-            'INPUT': ExtrairVrticesEspecficos_com_nome_0['OUTPUT'],
-            'INTERSECT': ExtrairVrticesEspecficos_com_nome_1['OUTPUT'],
+            'INPUT':ExtrairVrticesEspecficos_com_nome_0_ofic,
+            'INTERSECT': ExtrairVrticesEspecficos_com_nome_1_ofic,
             'PREDICATE': [2],  
-            'OUTPUT':'memory:'})
+            'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairPorLocalizao_nascente_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairPorLocalizao_nascente['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         #outputs['ExtrairPorLocalizao_nascente'] = processing.run('native:extractbylocation', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
@@ -277,57 +334,72 @@ class ContinuousNetworkAnalysisAlgorithm(QgsProcessingAlgorithm):
 
         # Interseção vert_-1_sem_nome_-1_com_nome
         InterseoVert_1_sem_nome_1_com_nome =processing.run('native:intersection', {
-            'INPUT': ExtrairVrticesEspecficos1SemNome['OUTPUT'],
+            'INPUT': ExtrairVrticesEspecficos1SemNome_ofic,
             'INPUT_FIELDS': [''],
-            'OVERLAY': ExtrairVrticesEspecficos_com_nome_1['OUTPUT'],
+            'OVERLAY': ExtrairVrticesEspecficos_com_nome_1_ofic,
             'OVERLAY_FIELDS': [''],
             'OVERLAY_FIELDS_PREFIX': '',
-            'OUTPUT': 'memory:'})
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        InterseoVert_1_sem_nome_1_com_nome_ofic=QgsProcessingUtils.mapLayerFromString(InterseoVert_1_sem_nome_1_com_nome['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         #outputs['InterseoVert_1_sem_nome_1_com_nome'] = processing.run('native:intersection', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
         # Extrair por localização_1
         ExtrairPorLocalizao_1 =processing.run('native:extractbylocation', {
-            'INPUT': ExtrairVrticesEspecficos_com_nome_1['OUTPUT'],
-            'INTERSECT': ExtrairVrticesEspecficos_com_nome_0['OUTPUT'],
+            'INPUT': ExtrairVrticesEspecficos_com_nome_1_ofic,
+            'INTERSECT': ExtrairVrticesEspecficos_com_nome_0_ofic,
             'PREDICATE': [2],  
-            'OUTPUT': 'memory:'})
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairPorLocalizao_1_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairPorLocalizao_1['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         #outputs['ExtrairPorLocalizao_1'] = processing.run('native:extractbylocation', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
 
         # Extrair por localização oi
         ExtrairPorLocalizaoOi =processing.run('native:extractbylocation', {
-            'INPUT': ExtrairPorLocalizao_1['OUTPUT'],
-            'INTERSECT':ExtrairPorLocalizao_nascente['OUTPUT'],
+            'INPUT': ExtrairPorLocalizao_1_ofic,
+            'INTERSECT':ExtrairPorLocalizao_nascente_ofic,
             'PREDICATE': [2],  # desunidos
-            'OUTPUT': 'memory:'})
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairPorLocalizaoOi_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairPorLocalizaoOi['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         #outputs['ExtrairPorLocalizaoOi'] = processing.run('native:extractbylocation', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
 
         # Extrair por localizaçãover_-1_sem_nome_-1_com_nome_vs_0_com_nome
         ExtrairPorLocalizaover_1_sem_nome_1_com_nome_vs_0_com_nome =processing.run('native:extractbylocation', {
-            'INPUT': InterseoVert_1_sem_nome_1_com_nome['OUTPUT'],
-            'INTERSECT': ExtrairVrticesEspecficos_com_nome_0['OUTPUT'],
+            'INPUT': InterseoVert_1_sem_nome_1_com_nome_ofic,
+            'INTERSECT': ExtrairVrticesEspecficos_com_nome_0_ofic,
             'PREDICATE': [2],  # desunidos
-            'OUTPUT': 'memory:'})
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairPorLocalizaover_1_sem_nome_1_com_nome_vs_0_com_nome_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairPorLocalizaover_1_sem_nome_1_com_nome_vs_0_com_nome['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
 
         # Extrair por localização06
         ExtrairPorLocalizao06 =processing.run('native:extractbylocation', {
-            'INPUT':ExtrairPorLocalizaoOi['OUTPUT'],
-            'INTERSECT': ExtrairVrticesEspecficos_com_nome_0['OUTPUT'],
+            'INPUT':ExtrairPorLocalizaoOi_ofic,
+            'INTERSECT': ExtrairVrticesEspecficos_com_nome_0_ofic,
             'PREDICATE': [2],  
-            'OUTPUT': 'memory:'})
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairPorLocalizao06_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairPorLocalizao06['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         #outputs['ExtrairPorLocalizao06'] = processing.run('native:extractbylocation', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
-
+        #Nao
         # Remover duplicatas pelo atributo-1-1+0
         RemoverDuplicatasPeloAtributo110=processing.run('native:removeduplicatesbyattribute', {
             'FIELDS': ['id'],
-            'INPUT': ExtrairPorLocalizaover_1_sem_nome_1_com_nome_vs_0_com_nome['OUTPUT'],
+            'INPUT': ExtrairPorLocalizaover_1_sem_nome_1_com_nome_vs_0_com_nome_ofic,
             'DUPLICATES': 'memory:',
             'OUTPUT': 'memory:'})
         
@@ -335,31 +407,26 @@ class ContinuousNetworkAnalysisAlgorithm(QgsProcessingAlgorithm):
 
 
 
-        # Extrair por localização_limpo_-1;-1
-        ExtrairPorLocalizao_limpo_11 =processing.run('native:extractbylocation', {
-            'INPUT': RemoverDuplicatasPeloAtributo110['OUTPUT'],
-            'INTERSECT': RemoverDuplicatasPeloAtributo110['DUPLICATES'],
-            'PREDICATE': [2],  # desunidos
-            'OUTPUT':'memory:'})
-        
-        #outputs['ExtrairPorLocalizao_limpo_11'] = processing.run('native:extractbylocation', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+
 
 
         # Extrair por localização final
         ExtrairPorLocalizaoFinal =processing.run('native:extractbylocation', {
-            'INPUT': ExtrairPorLocalizao06['OUTPUT'],
-            'INTERSECT': ExtrairVrticesEspecficos_sem_nome_0['OUTPUT'],
+            'INPUT': ExtrairPorLocalizao06_ofic,
+            'INTERSECT': ExtrairVrticesEspecficos_sem_nome_0_ofic,
             'PREDICATE': [0], 
-            'OUTPUT': 'memory:'
-        })
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairPorLocalizaoFinal_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairPorLocalizaoFinal['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         #outputs['ExtrairPorLocalizaoFinal'] = processing.run('native:extractbylocation', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
 
-
+        #NAO
         # Remover duplicatas pelo atributo final2
         RemoverDuplicatasPeloAtributoFinal2=processing.run('native:removeduplicatesbyattribute', {
             'FIELDS': 'nome; vertex_pos',
-            'INPUT': ExtrairPorLocalizaoFinal['OUTPUT'],
+            'INPUT': ExtrairPorLocalizaoFinal_ofic,
             'DUPLICATES':'memory:',
             'OUTPUT': 'memory:'
         })
@@ -367,102 +434,119 @@ class ContinuousNetworkAnalysisAlgorithm(QgsProcessingAlgorithm):
 
 
 
-        # Extrair por localização
-        ExtrairPorLocalizao=processing.run('native:extractbylocation', {
-            'INPUT': ExtrairPorLocalizaoFinal['OUTPUT'],
-            'INTERSECT': RemoverDuplicatasPeloAtributoFinal2['DUPLICATES'],
-            'PREDICATE': [2], 
-            'OUTPUT': 'memory:'})
-        #outputs['ExtrairPorLocalizao'] = processing.run('native:extractbylocation', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
         # Amortecedor
         Amortecedor=processing.run('native:buffer', {
             'DISSOLVE': False,
             'DISTANCE': 1e-05,
             'END_CAP_STYLE': 0,  # Arredondado
-            'INPUT': ExtrairPorLocalizaoFinal['OUTPUT'],
+            'INPUT': ExtrairPorLocalizaoFinal_ofic,
             'JOIN_STYLE': 0,  # Arredondado
             'MITER_LIMIT': 2,
             'SEGMENTS': 5,
-            'OUTPUT': 'memory:'
-        })
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        Amortecedor_ofic=QgsProcessingUtils.mapLayerFromString(Amortecedor['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         #outputs['Amortecedor'] = processing.run('native:buffer', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
         # Interseção 
         Interseo=processing.run('native:intersection', {
-            'INPUT': ExtrairPorLocalizaoFinal['OUTPUT'],
+            'INPUT': ExtrairPorLocalizaoFinal_ofic,
             'INPUT_FIELDS': [''],
-            'OVERLAY': Amortecedor['OUTPUT'],
+            'OVERLAY': Amortecedor_ofic,
             'OVERLAY_FIELDS': [''],
             'OVERLAY_FIELDS_PREFIX': '',
-            'OUTPUT': 'memory:'
-        })
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        Interseo_ofic=QgsProcessingUtils.mapLayerFromString(Interseo['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         #outputs['Interseo'] = processing.run('native:intersection', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
         # Contagem de pontos em polígono
         ContagemDePontosEmPolgono =processing.run('native:countpointsinpolygon', {
             'CLASSFIELD': '',
             'FIELD': 'NUMPOINTS',
-            'POINTS': ExtrairPorLocalizaoFinal['OUTPUT'],
-            'POLYGONS': Amortecedor['OUTPUT'],
+            'POINTS': ExtrairPorLocalizaoFinal_ofic,
+            'POLYGONS':Amortecedor_ofic,
             'WEIGHT': '',
-            'OUTPUT': 'memory:'
-        })
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ContagemDePontosEmPolgono_ofic=QgsProcessingUtils.mapLayerFromString(ContagemDePontosEmPolgono['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         #outputs['ContagemDePontosEmPolgono'] = processing.run('native:countpointsinpolygon', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
         # 0Extrair por expressão 000000000000000000000000000000000000000000000000
-        ExtrairPorExpresso000000000000000000000000000000000000000000000000 = processing.run('native:extractbyexpression',{
+        ExtrairPorExpresso0000000 = processing.run('native:extractbyexpression',{
             'EXPRESSION': '"nome" !="nome_2"',
-            'INPUT': Interseo['OUTPUT'],
-            'OUTPUT': 'memory:'
-        })
+            'INPUT': Interseo_ofic,
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairPorExpresso0000000_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairPorExpresso0000000['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         #outputs['ExtrairPorExpresso000000000000000000000000000000000000000000000000'] = processing.run('native:extractbyexpression', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
         # Extrair por atributo_agora
         ExtrairPorAtributo_agora =processing.run('native:extractbyattribute', {
             'FIELD': 'NUMPOINTS',
-            'INPUT': ContagemDePontosEmPolgono['OUTPUT'],
+            'INPUT': ContagemDePontosEmPolgono_ofic,
             'OPERATOR': 0,  # =
             'VALUE': '1',
-            'OUTPUT': 'memory:'
-        })
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairPorAtributo_agora_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairPorAtributo_agora['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         #outputs['ExtrairPorAtributo_agora'] = processing.run('native:extractbyattribute', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
         # Extrair por localização_contagem
         ExtrairPorLocalizao_contagem = processing.run('native:extractbylocation',{
-            'INPUT': ExtrairPorLocalizaoFinal['OUTPUT'],
-            'INTERSECT': ExtrairPorAtributo_agora['OUTPUT'],
+            'INPUT': ExtrairPorLocalizaoFinal_ofic,
+            'INTERSECT': ExtrairPorAtributo_agora_ofic,
             'PREDICATE': [0], 
-            'OUTPUT': 'memory:'})
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExtrairPorLocalizao_contagem_ofic=QgsProcessingUtils.mapLayerFromString(ExtrairPorLocalizao_contagem['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         #outputs['ExtrairPorLocalizao_contagem'] = processing.run('native:extractbylocation', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
 
         # Excluir geometrias duplicadas009
         ExcluirGeometriasDuplicadas009 =processing.run('native:deleteduplicategeometries', {
-            'INPUT': ExtrairPorExpresso000000000000000000000000000000000000000000000000['OUTPUT'],
-            'OUTPUT': 'memory:'
-        })
+            'INPUT': ExtrairPorExpresso0000000_ofic,
+            'OUTPUT': 'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        ExcluirGeometriasDuplicadas009_ofic=QgsProcessingUtils.mapLayerFromString(ExcluirGeometriasDuplicadas009['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         #outputs['ExcluirGeometriasDuplicadas009'] = processing.run('native:deleteduplicategeometries', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
 
         #MEsclar
         a01=processing.run("native:mergevectorlayers",{
-        'LAYERS':[ExtrairPorLocalizao_contagem['OUTPUT'],ExcluirGeometriasDuplicadas009['OUTPUT']],
-        'OUTPUT':'memory:'})
+        'LAYERS':[ExtrairPorLocalizao_contagem_ofic,ExcluirGeometriasDuplicadas009['OUTPUT']],
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        a01_ofic=QgsProcessingUtils.mapLayerFromString(a01['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
             
         #output = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
         fil_1=processing.run("native:mergevectorlayers",{
-        'LAYERS':[a01['OUTPUT'],nasc_sem_Final['OUTPUT']],
-        'OUTPUT':'memory:'})
+        'LAYERS':[a01_ofic,nasc_sem_Final_ofic],
+        'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        fil_1_ofic=QgsProcessingUtils.mapLayerFromString(fil_1['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
         
         fil_2=processing.run('native:deleteduplicategeometries', {
-            'INPUT': fil_1['OUTPUT'],
-            'OUTPUT':'memory:'})
+            'INPUT': fil_1_ofic,
+            'OUTPUT':'memory:'},context=context, feedback=feedback, is_child_algorithm=True) 
+        fil_2_ofic=QgsProcessingUtils.mapLayerFromString(fil_2['OUTPUT'], context)
+        if feedback.isCanceled():
+            return {}
             
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, fil_2['OUTPUT'].fields(), fil_2['OUTPUT'].wkbType(), fil_2['OUTPUT'].sourceCrs())
+        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context, fil_2_ofic.fields(), fil_2_ofic.wkbType(), fil_2_ofic.sourceCrs())
 
             
-        for feature in fil_2['OUTPUT'].getFeatures():
+        for feature in fil_2_ofic.getFeatures():
             geom = feature.geometry()
             new_feature = QgsFeature()
             new_feature.setGeometry(geom)
